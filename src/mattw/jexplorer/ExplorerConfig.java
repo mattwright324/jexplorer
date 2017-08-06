@@ -16,17 +16,19 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 
 import jcifs.util.Base64;
+import mattw.jexplorer.io.Address;
+import mattw.jexplorer.io.AddressBlock;
 
-public class JEFXConfig {
+public class ExplorerConfig {
 	
 	private final Gson gson = new GsonBuilder().excludeFieldsWithModifiers(Modifier.FINAL).create();
 	private final File CONFIG_FILE = new File("jexplorer.config");
 	
-	public List<String> addressList = new ArrayList<String>();
-	public List<AddressBlock> rangeList = new ArrayList<AddressBlock>();
-	public List<Login> loginList = new ArrayList<Login>();
+	public List<String> addressList = new ArrayList<>();
+	public List<AddressBlock> rangeList = new ArrayList<>();
+	public List<Login> loginList = new ArrayList<>();
 	
-	private void loadAs(JEFXConfig config) {
+	private void loadAs(ExplorerConfig config) {
 		setAddressList(config.addressList);
 		setRangeList(config.rangeList);
 		setLoginList(config.loginList);
@@ -115,13 +117,13 @@ public class JEFXConfig {
 			save();
 		}
 		BufferedReader br = new BufferedReader(new FileReader(CONFIG_FILE));
-		String json = "";
+		StringBuilder json = new StringBuilder();
 		String line;
 		while((line = br.readLine()) != null) {
-			json += line;
+			json.append(line);
 		}
 		br.close();
-		String decoded = new String(Base64.decode(json));
-		loadAs(gson.fromJson(decoded, JEFXConfig.class));
+		String decoded = new String(Base64.decode(json.toString()));
+		loadAs(gson.fromJson(decoded, ExplorerConfig.class));
 	}
 }

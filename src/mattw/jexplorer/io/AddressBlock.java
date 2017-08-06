@@ -1,4 +1,4 @@
-package mattw.jexplorer;
+package mattw.jexplorer.io;
 
 import java.io.IOException;
 

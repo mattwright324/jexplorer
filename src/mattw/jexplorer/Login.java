@@ -4,11 +4,6 @@ public class Login {
 	
 	public String username, password, domain = "";
 	
-	public Login(String u, String p) {
-		this.username = u;
-		this.password = p;
-	}
-	
 	public Login(String u, String p, String d) {
 		this.username = u;
 		this.password = p;

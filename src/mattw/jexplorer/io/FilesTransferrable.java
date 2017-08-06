@@ -1,4 +1,4 @@
-package mattw.jexplorer;
+package mattw.jexplorer.io;
 
 import java.awt.datatransfer.ClipboardOwner;
 import java.awt.datatransfer.DataFlavor;
@@ -34,14 +34,11 @@ public class FilesTransferrable implements Transferable, ClipboardOwner {
 
 	@Override
 	public boolean isDataFlavorSupported(DataFlavor flavor) {
-		if (flavor == DataFlavor.javaFileListFlavor) {
-			return true;
-		}
-		return false;
-	};
+		return flavor == DataFlavor.javaFileListFlavor;
+	}
 
 	@Override
 	public void lostOwnership(java.awt.datatransfer.Clipboard clipboard, Transferable contents) {
 
-	};
+	}
 }

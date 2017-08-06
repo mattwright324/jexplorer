@@ -1,4 +1,4 @@
-package mattw.jexplorer;
+package mattw.jexplorer.io;
 
 import java.io.IOException;
 
@@ -24,7 +24,7 @@ public class Address {
 	
 	
 	public static boolean isIPv4(String ip) {
-		return ip.matches("([0-9]{1,3}\\.){3}[0-9]{1,3}"); // More efficient way than regex? | split(".").length == 4 TODO regex not working
+		return ip != null && ip.matches("([0-9]{1,3}\\.){3}[0-9]{1,3}"); // More efficient way than regex? | split(".").length == 4 TODO regex not working
 	}
 	
 	public static long IPtoDEC(String ip) throws IOException {

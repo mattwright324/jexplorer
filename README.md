@@ -1,2 +1,2 @@
-# jexplorer
-File Explorer that combines local drives with FTP and Samba network scanning.
+# JExplorer
+Java File Explorer that combines traversing local drives with FTP and SMB network location scanning.
