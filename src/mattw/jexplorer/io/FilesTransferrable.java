@@ -8,6 +8,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Allows for copy and pasting of Type.LOCAL files via the system clipboard.
+ *
+ * List<File> list = new ArrayList<>(listOfFiles);
+ * FilesTransferrable ft = new FilesTransferrable(list);
+ * Toolkit.getDefaultToolkit().getSystemClipboard().setContents(ft, ft);
+ */
 public class FilesTransferrable implements Transferable, ClipboardOwner {
 	
 	private List<File> list;

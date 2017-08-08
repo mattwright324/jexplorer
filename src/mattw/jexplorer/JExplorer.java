@@ -52,10 +52,9 @@ public class JExplorer extends Application {
 	 * TODO Introduce FTP scanning.
 	 */
 
-	private static FileManager explorer;
+	private static FileManager fileManager;
 
 	private ExplorerConfig config = new ExplorerConfig();
-	private Stage stage;
 	private StackPane layout, main, settings;
 	private ComboBox<String> orderBy;
 	private ProgressIndicator progress;
@@ -67,14 +66,47 @@ public class JExplorer extends Application {
 		launch(args);
 	}
 
-	public static FileManager getExplorer() {
-		return explorer;
+	public static FileManager getFileManager() {
+		return fileManager;
 	}
 
-	public StackPane createSettingsPane() {
+	public void start(Stage stage) throws Exception {
+		config.load();
+		config.save();
+		jcifs.Config.setProperty("jcifs.smb.client.disablePlainTextPasswords","false");
+		
+		main = createMainPane();
+		settings = createSettingsPane();
+		
+		layout = new StackPane();
+		layout.getChildren().add(main);
+		
+		Scene scene = new Scene(layout, 700, 500);
+    	scene.getStylesheets().add(
+    			getClass().getResource("/mattw/jexplorer/jexplorer.css").toExternalForm()
+    	);
+    	stage.setTitle("JExplorer");
+    	stage.setScene(scene);
+    	stage.getIcons().add(new Image(getClass().getResourceAsStream("/mattw/jexplorer/img/icon.png")));
+    	stage.setOnCloseRequest(e -> {
+    		Platform.exit();
+    		System.exit(0);
+    	});
+    	stage.show();
+
+    	Task<Void> task = new Task<Void>() {
+			protected Void call() throws Exception {
+				findLocalDrives();
+				return null;
+			}
+		};
+		new Thread(task).start();
+	}
+
+	private StackPane createSettingsPane() {
 		Label title = new Label("Settings");
 		title.setFont(Font.font("Tahoma", FontWeight.SEMI_BOLD, 16));
-		
+
 		TextArea ranges = new TextArea();
 		ranges.setPromptText("192.168.0.0/16\r\n172.16.0.0-172.16.255.255\r\nserver1.domain.com");
 		ranges.setMinWidth(250);
@@ -83,24 +115,25 @@ public class JExplorer extends Application {
 		String range = config.rangeList.stream().map(AddressBlock::toString).collect(Collectors.joining("\n"));
 		if(!config.addressList.isEmpty() && !config.rangeList.isEmpty()) address += "\n";
 		ranges.setText(address+range);
+
 		TextArea logins = new TextArea();
-		logins.setPromptText("username:password|domain\nusername:password\nusername:|domain");
+		logins.setPromptText("username:password|domain\r\nusername:password\r\nusername:|domain");
 		logins.setMinWidth(250);
 		logins.setMinHeight(200);
 		logins.setText(config.loginList.stream().map(Login::toString).collect(Collectors.joining("\n")));
-		
+
 		GridPane grid = new GridPane();
 		grid.setVgap(5);
 		grid.setHgap(5);
 		grid.addColumn(0, new Label("Network Ranges"), ranges);
 		grid.addColumn(1, new Label("Logins"), logins);
-		
+
 		Button cancel = new Button("Cancel");
 		Button finish = new Button("Save and Finish");
 		HBox hbox = new HBox(10);
 		hbox.setAlignment(Pos.CENTER_RIGHT);
 		hbox.getChildren().addAll(cancel, finish);
-		
+
 		VBox vbox = new VBox(10);
 		vbox.setId("stackMenu");
 		vbox.setMaxHeight(0);
@@ -109,9 +142,9 @@ public class JExplorer extends Application {
 		vbox.setPadding(new Insets(25,25,25,25));
 		vbox.setAlignment(Pos.CENTER_LEFT);
 		vbox.getChildren().addAll(title, grid, hbox);
-		
+
 		StackPane glass = new StackPane();
-		glass.setStyle("-fx-background-color: rgba(127,127,127,0.5);"); 
+		glass.setStyle("-fx-background-color: rgba(127,127,127,0.5);");
 		glass.setMaxHeight(Double.MAX_VALUE);
 		glass.setMaxWidth(Double.MAX_VALUE);
 		glass.setAlignment(Pos.CENTER);
@@ -129,8 +162,8 @@ public class JExplorer extends Application {
 		cancel.setOnAction(ae -> layout.getChildren().remove(glass));
 		return glass;
 	}
-	
-	public HBox createMenuBar() {
+
+	private HBox createMenuBar() {
 		searchNetwork = new Button("Search Network");
 		ImageView settingImg = new ImageView(new Image(getClass().getResourceAsStream("/mattw/jexplorer/images/settings.png")));
 		settingImg.setFitHeight(16);
@@ -138,140 +171,98 @@ public class JExplorer extends Application {
 		searchSettings = new Button();
 		searchSettings.setGraphic(settingImg);
 		searchSettings.setOnAction(ae -> layout.getChildren().add(settings));
-		/*ImageView refresh = new ImageView(new Image(getClass().getResourceAsStream("/mattw/jexplorer/images/btn_reload.png")));
-		refresh.setFitHeight(16);
-		refresh.setFitWidth(16);
-		Button refreshList = new Button();
-		refreshList.setDisable(true);
-		refreshList.setGraphic(refresh);*/
-		
+
 		HBox search = new HBox();
 		search.setAlignment(Pos.CENTER_LEFT);
 		search.getChildren().addAll(searchNetwork, searchSettings);
-		
+
 		progress = new ProgressIndicator();
 		progress.setVisible(false);
 		progress.setMaxWidth(20);
 		progress.setMaxHeight(20);
-		
+
 		label = new Label();
 		label.setFont(Font.font("Tahoma", FontWeight.SEMI_BOLD, 12));
 		label.setStyle("-fx-border-color: white white lightgray white; -fx-border-width: 0 0 2 0; -fx-text-fill: gray; -fx-border-style: segments(5 2 5 2) line-cap round;");
-		
+
 		HBox prog = new HBox(10);
 		prog.setAlignment(Pos.CENTER_LEFT);
 		prog.getChildren().addAll(progress, label);
-		
+
 		HBox hbox = new HBox(10);
 		hbox.setPadding(new Insets(10,10,10,10));
 		hbox.setAlignment(Pos.CENTER_LEFT);
 		hbox.getChildren().addAll(search, prog);
-		
+
 		searchNetwork.setOnAction(ae -> searchNetwork());
 		return hbox;
 	}
-	
-	public StackPane createMainPane() {
+
+	private StackPane createMainPane() {
 		driveList = new VBox(0);
 		driveList.setFillWidth(true);
 		driveList.setAlignment(Pos.TOP_CENTER);
 		ScrollPane scroll = new ScrollPane(driveList);
 		scroll.setFitToHeight(true);
 		scroll.setFitToWidth(true);
-		
+
 		orderBy = new ComboBox<>();
 		orderBy.getItems().addAll("By Path", "By Access", "By Login");
 		orderBy.getSelectionModel().select(0);
 		orderBy.setOnAction(ae -> sortDrives(orderBy.getSelectionModel().getSelectedIndex()));
-		
-		// ToggleButton hideNoAccess = new ToggleButton("Hide No-Access");
-		
+
 		HBox driveMenu = new HBox(10);
 		driveMenu.setMinWidth(300);
 		driveMenu.setPadding(new Insets(0, 10, 0, 10));
 		driveMenu.setAlignment(Pos.CENTER);
 		driveMenu.getChildren().addAll(new Label("Order"), orderBy);
-		
+
 		VBox drives = new VBox(10);
 		drives.setFillWidth(true);
 		drives.setAlignment(Pos.TOP_CENTER);
 		drives.getChildren().addAll(driveMenu, scroll);
-		explorer = new FileManager();
-		
+		fileManager = new FileManager();
+
 		VBox files = new VBox(10);
 		files.setFillWidth(true);
 		files.setAlignment(Pos.TOP_CENTER);
-		files.getChildren().addAll(explorer);
-		
+		files.getChildren().addAll(fileManager);
+
 		SplitPane split = new SplitPane();
 		split.setStyle("-fx-box-border: transparent;");
 		split.getItems().addAll(drives, files);
 		split.setDividerPosition(0, 0.0);
 		SplitPane.setResizableWithParent(drives, Boolean.FALSE);
-		
+
 		VBox vbox = new VBox();
 		vbox.setAlignment(Pos.TOP_CENTER);
 		vbox.setFillWidth(true);
 		vbox.getChildren().addAll(createMenuBar(), split);
-		
+
 		StackPane pane = new StackPane();
 		pane.setAlignment(Pos.TOP_CENTER);
 		pane.getChildren().add(vbox);
 		return pane;
 	}
-	
-	public void sortDrives(int order) {
-		Comparator<DrivePath> comp = null;
+
+	private void sortDrives(int order) {
+		Comparator<DrivePane> comp = null;
 		if(order == 0) {
-			comp = Comparator.comparing(DrivePath::getBasePath);
+			comp = Comparator.comparing(DrivePane::getBasePath);
 		} else if(order == 1) {
-			comp = Comparator.comparing(DrivePath::getAccess);
+			comp = Comparator.comparing(DrivePane::getAccess);
 		} else if(order == 2) {
-			comp = Comparator.comparing(DrivePath::getLogin);
+			comp = Comparator.comparing(DrivePane::getLogin);
 		}
 		ObservableList<Node> list = driveList.getChildren();
-		FXCollections.sort(list, Comparator.comparing(node -> (DrivePath) node, comp));
-	}
-	
-	public void start(Stage stage) throws Exception {
-		this.stage = stage;
-		config.load();
-		config.save();
-		jcifs.Config.setProperty("jcifs.smb.client.disablePlainTextPasswords","false");
-		
-		main = createMainPane();
-		settings = createSettingsPane();
-		
-		layout = new StackPane();
-		layout.getChildren().add(main);
-		
-		Scene scene = new Scene(layout, 700, 500);
-    	scene.getStylesheets().add(
-    			getClass().getResource("/mattw/jexplorer/jexplorer.css").toExternalForm()
-    	);
-    	stage.setTitle("JExplorer");
-    	stage.setScene(scene);
-    	stage.getIcons().add(new Image(getClass().getResourceAsStream("/mattw/jexplorer/images/btn_remote.png")));
-    	stage.setOnCloseRequest(e -> {
-    		Platform.exit();
-    		System.exit(0);
-    	});
-    	stage.show();
-    	
-    	Task<Void> task = new Task<Void>() {
-			protected Void call() throws Exception {
-				findLocalDrives();
-				return null;
-			}
-		};
-		new Thread(task).start();
+		FXCollections.sort(list, Comparator.comparing(node -> (DrivePane) node, comp));
 	}
 
 	private void findLocalDrives() {
 		IntStream.range('A', 'Z').forEach(c -> {
 			File drive = new File((char) c + "://");
 			if(drive.exists()) {
-				Platform.runLater(() -> driveList.getChildren().add(new DrivePath(Type.LOCAL, drive.getAbsolutePath(), new Login("", "", ""), DrivePath.LOCAL, null)));
+				Platform.runLater(() -> driveList.getChildren().add(new DrivePane(Type.LOCAL, drive.getAbsolutePath(), new Login("", "", ""), DrivePane.LOCAL, null)));
 			}
 		});
 	}
@@ -309,7 +300,7 @@ public class JExplorer extends Application {
 	private void checkAddress(String addr) {
 		try {
 			InetAddress inet = InetAddress.getByName(addr);
-			DrivePath dp = null;
+			DrivePane dp;
 			String hostName = inet.getHostName();
 			Platform.runLater(() -> label.setText(addr+" ("+hostName+")"));
 			boolean connected = false;
@@ -323,13 +314,13 @@ public class JExplorer extends Application {
 					for (SmbFile domain : domains) {
 						File f = new File(domain.getPath().replace("smb:", "").replace("/", "\\"));
 						if (f.exists()) {
-							addDrive(dp = new DrivePath(Type.LOCAL, f.getAbsolutePath(), login, DrivePath.NETWORK, auth));
+							addDrive(new DrivePane(Type.LOCAL, f.getAbsolutePath(), login, DrivePane.NETWORK, auth));
 						} else {
 							try {
 								domain.listFiles();
-								addDrive(dp = new DrivePath(Type.SAMBA, domain.getPath(), login, DrivePath.NETWORK, auth));
+								addDrive(new DrivePane(Type.SAMBA, domain.getPath(), login, DrivePane.NETWORK, auth));
 							} catch (SmbAuthException sae) {
-								addDrive(dp = new DrivePath(Type.SAMBA, domain.getPath(), login, DrivePath.ACCESS_FAILED, auth));
+								addDrive(dp = new DrivePane(Type.SAMBA, domain.getPath(), login, DrivePane.ACCESS_FAILED, auth));
 								dp.setErrorMessage(sae.getLocalizedMessage());
 							} catch (Exception ignored) {
 							}
@@ -338,12 +329,10 @@ public class JExplorer extends Application {
 					break;
 				} catch(NullPointerException npe) {
 					npe.printStackTrace();
-				} catch (Exception e) {
-					// e.printStackTrace();
-				}
+				} catch (Exception ignored) {}
 			}
 			if(!connected) {
-				addDrive(dp = new DrivePath(Type.SAMBA, hostName, null, DrivePath.NO_ACCESS, null));
+				addDrive(dp = new DrivePane(Type.SAMBA, hostName, null, DrivePane.NO_ACCESS, null));
 				dp.setErrorMessage("Could not connect.");
 			}
 		} catch (UnknownHostException e) {
@@ -351,7 +340,7 @@ public class JExplorer extends Application {
 		}
 	}
 
-	private void addDrive(DrivePath dp) {
+	private void addDrive(DrivePane dp) {
 		Platform.runLater(() -> {
 			driveList.getChildren().add(dp);
 			sortDrives(orderBy.getSelectionModel().getSelectedIndex());

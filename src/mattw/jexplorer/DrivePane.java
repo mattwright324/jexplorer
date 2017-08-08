@@ -22,22 +22,22 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.MalformedURLException;
 
-public class DrivePath extends HBox {
+public class DrivePane extends HBox {
     final static int LOCAL = 0;
     final static int NETWORK = 1;
     final static int ACCESS_FAILED = 2;
     final static int NO_ACCESS = 3;
 
-    private static DrivePath lastSelection;
+    private static DrivePane lastSelection;
     private final Image SHARE = new Image(getClass().getResourceAsStream("/mattw/jexplorer/images/share64.png"));
     private final Type type;
     private final int access;
     private String error_msg = "";
     private final String path;
     private final Login login;
-    public FilePane filePane;
     private boolean selected;
     private NtlmPasswordAuthentication ntmlAuth;
+    public FilePane filePane;
 
     private Label label, auth;
 
@@ -60,7 +60,7 @@ public class DrivePath extends HBox {
         }
     }
 
-    public DrivePath(Type type, String path, Login login, int access, NtlmPasswordAuthentication ntmlAuth) {
+    public DrivePane(Type type, String path, Login login, int access, NtlmPasswordAuthentication ntmlAuth) {
         super(5);
         setId("drivePane");
         setAlignment(Pos.CENTER_LEFT);
@@ -106,7 +106,7 @@ public class DrivePath extends HBox {
         if(access == NETWORK || access == LOCAL) {
             setOnMouseClicked(me -> {
                 setSelected(true);
-                JExplorer.getExplorer().loadDrive(this);
+                JExplorer.getFileManager().loadDrive(this);
             });
         } else if(access == ACCESS_FAILED) {
             setStyle("-fx-background-color: derive(firebrick, 95%)");

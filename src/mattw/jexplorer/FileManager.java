@@ -21,12 +21,12 @@ import java.util.stream.IntStream;
 
 public class FileManager extends VBox {
 
-    public VBox fileList;
-    public DrivePath path;
-    public List<FilePane> history = new ArrayList<>();
-    public TextField pathField;
-    public ProgressIndicator loading;
-    public ComboBox<String> orderBy;
+    private VBox fileList;
+    private DrivePane path;
+    private List<FilePane> history = new ArrayList<>();
+    private TextField pathField;
+    private ProgressIndicator loading;
+    private ComboBox<String> orderBy;
 
     public FileManager() {
         super();
@@ -83,7 +83,7 @@ public class FileManager extends VBox {
         getChildren().addAll(fileMenu, scroll);
     }
 
-    public void sort() {
+    private void sort() {
         int order = orderBy.getSelectionModel().getSelectedIndex();
         Comparator<FilePane> comp = null;
         if(order == 0) {
@@ -106,7 +106,7 @@ public class FileManager extends VBox {
         IntStream.range(0,  fileList.getChildren().size()).forEach(i -> checkOdd(i, fileList.getChildren().get(i)));
     }
 
-    public void checkOdd(int i, Node fp) {
+    private void checkOdd(int i, Node fp) {
         if(i % 2 == 0) {
             fp.setId("filePane");
         } else {
@@ -114,26 +114,18 @@ public class FileManager extends VBox {
         }
     }
 
-    public void loadDrive(DrivePath drivePath) {
-        loading.setVisible(true);
-        path = drivePath;
-        history.clear();
-        history.add(path.filePane);
-        pathField.setText(path.getBasePath());
-        fileList.getChildren().clear();
-        Task<Void> task = new Task<Void>() {
-            protected Void call() throws Exception {
-                List<FilePane> list = path.filePane.getFileList();
-                Platform.runLater(() -> {
-                    // stage.setTitle("JExplorer - Showing "+list.size()+" files");
-                    fileList.getChildren().addAll(list);
-                    loading.setVisible(false);
-                    sort();
-                });
-                return null;
-            }
-        };
-        new Thread(task).start();
+    private void goHome() {
+        loadDrive(path);
+    }
+
+    private void goBack() {
+        System.out.println(history);
+        history.remove(history.size()-1);
+        loadDirectory(history.get(history.size()-1));
+    }
+
+    private void reload() {
+        loadDirectory(history.get(history.size()-1));
     }
 
     public void loadDirectory(FilePane filePane) {
@@ -160,17 +152,25 @@ public class FileManager extends VBox {
         }
     }
 
-    public void goHome() {
-        loadDrive(path);
-    }
-
-    public void goBack() {
-        System.out.println(history);
-        history.remove(history.size()-1);
-        loadDirectory(history.get(history.size()-1));
-    }
-
-    public void reload() {
-        loadDirectory(history.get(history.size()-1));
+    public void loadDrive(DrivePane drivePane) {
+        loading.setVisible(true);
+        path = drivePane;
+        history.clear();
+        history.add(path.filePane);
+        pathField.setText(path.getBasePath());
+        fileList.getChildren().clear();
+        Task<Void> task = new Task<Void>() {
+            protected Void call() throws Exception {
+                List<FilePane> list = path.filePane.getFileList();
+                Platform.runLater(() -> {
+                    // stage.setTitle("JExplorer - Showing "+list.size()+" files");
+                    fileList.getChildren().addAll(list);
+                    loading.setVisible(false);
+                    sort();
+                });
+                return null;
+            }
+        };
+        new Thread(task).start();
     }
 }

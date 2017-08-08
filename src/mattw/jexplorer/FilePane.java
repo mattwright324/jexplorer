@@ -31,10 +31,10 @@ import java.util.stream.Collectors;
 
 public class FilePane extends HBox {
 
-    public Type type;
-    public File file;
-    public SmbFile smbfile;
-    public ImageView icon;
+    private Type type;
+    private File file;
+    private SmbFile smbfile;
+    private ImageView icon;
 
     private final Image imgUnknown = new Image(getClass().getResourceAsStream("/mattw/jexplorer/images/about.png"));
     private final Image imgFile = new Image(getClass().getResourceAsStream("/mattw/jexplorer/images/file.png"));
@@ -60,7 +60,7 @@ public class FilePane extends HBox {
         icon.setFitHeight(24);
         icon.setFitWidth(24);
         filePath = file.getAbsolutePath();
-        icon.setImage(DrivePath.getFileSystemIcon(file));
+        icon.setImage(DrivePane.getFileSystemIcon(file));
         if(isDirectory) {
             File[] listFile = file.listFiles();
             if(listFile == null) {
@@ -188,22 +188,11 @@ public class FilePane extends HBox {
         getChildren().addAll(icon, vbox);
         setOnMouseClicked(me -> {
             if(me.getClickCount() == 2 && me.getButton().equals(MouseButton.PRIMARY)) {
-                JExplorer.getExplorer().loadDirectory(this);
+                JExplorer.getFileManager().loadDirectory(this);
             } else if(me.isPopupTrigger()) {
                 cm.show((Node) me.getSource(), me.getScreenX(), me.getScreenY());
             }
         });
-    }
-
-    public List<FilePane> getFileList() throws SmbException {
-        pos = 0;
-        if(type == Type.LOCAL && file.isDirectory()) {
-            return Arrays.asList(file.listFiles()).stream().map(FilePane::new).peek(file -> checkOdd(pos, file)).collect(Collectors.toList());
-        } else if(type == Type.SAMBA && smbfile.isDirectory()) {
-            return Arrays.asList(smbfile.listFiles()).stream().map(FilePane::new).peek(file -> checkOdd(pos, file)).collect(Collectors.toList());
-        } else {
-            return null;
-        }
     }
 
     private void checkOdd(int i, FilePane fp) {
@@ -219,10 +208,21 @@ public class FilePane extends HBox {
         return filePath;
     }
 
-    public static String readableFileSize(long size) {
+    private static String readableFileSize(long size) {
         if (size <= 0) return "0 B";
         final String[] units = new String[] { "B", "kB", "MB", "GB", "TB" };
         int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
         return new DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " " + units[digitGroups];
+    }
+
+    public List<FilePane> getFileList() throws SmbException {
+        pos = 0;
+        if(type == Type.LOCAL && file.isDirectory()) {
+            return Arrays.asList(file.listFiles()).stream().map(FilePane::new).peek(file -> checkOdd(pos, file)).collect(Collectors.toList());
+        } else if(type == Type.SAMBA && smbfile.isDirectory()) {
+            return Arrays.asList(smbfile.listFiles()).stream().map(FilePane::new).peek(file -> checkOdd(pos, file)).collect(Collectors.toList());
+        } else {
+            return null;
+        }
     }
 }
