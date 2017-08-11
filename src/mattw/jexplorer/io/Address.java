@@ -33,6 +33,12 @@ public class Address {
 	public Address nextAddress(int dist) {
 		return new Address(decimal+dist);
 	}
+
+	public synchronized Address syncNextAddress() {
+		decimal += 1;
+		ipv4 = DECtoIP(decimal);
+		return new Address(decimal);
+	}
 	
 	public static boolean isIPv4(String ip) {
 		return ip != null && ip.matches("([0-9]{1,3}\\.){3}[0-9]{1,3}"); // More efficient way than regex? | split(".").length == 4 TODO regex not working
