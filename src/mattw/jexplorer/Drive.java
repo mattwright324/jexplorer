@@ -30,6 +30,19 @@ public class Drive {
         this.driveType = type;
         this.drivePath = path;
         this.file = file;
+        try {
+            this.address = new Address("127.0.0.1");
+            this.hostName = InetAddress.getLocalHost().getHostName();
+        } catch (Exception ignored) {}
+    }
+
+    public Drive(Type type, String path, File file, String signIn, Address address, NtlmPasswordAuthentication auth) {
+        this.driveType = type;
+        this.drivePath = path;
+        this.signIn = signIn;
+        this.file = file;
+        this.hostName = findHostName(this.address = address);
+        this.smbAuth = auth;
     }
 
     public Drive(Type type, String path, String signIn, Address address, NtlmPasswordAuthentication auth, SmbFile file) {

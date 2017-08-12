@@ -19,8 +19,12 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import jcifs.smb.NtlmPasswordAuthentication;
+import jcifs.smb.SmbAuthException;
+import jcifs.smb.SmbFile;
 import mattw.jexplorer.io.Address;
 import mattw.jexplorer.io.AddressBlock;
 import org.apache.commons.net.ftp.FTPClient;
@@ -29,9 +33,14 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 public class JExplorer2 extends Application {
@@ -39,7 +48,7 @@ public class JExplorer2 extends Application {
     private static JExplorer2 app;
 
     private SimpleBooleanProperty scanningProperty = new SimpleBooleanProperty(false);
-    private TextArea networkList = new TextArea();
+    private TextArea networkList = new TextArea(), credList = new TextArea();
     private ProgressIndicator localIndicator, networkIndicator;
     private TreeView<Node> tree;
     private TreeItem<Node> localRoot, networkRoot;
@@ -142,7 +151,7 @@ public class JExplorer2 extends Application {
 
         btnStart.setTooltip(new Tooltip("Start scan."));
         btnStart.setGraphic(start);
-        btnStart.setOnAction(ae -> startNetworkScan());
+        btnStart.setOnAction(ae -> startNetworkScan(credList.getText(), networkList.getText()));
 
         HBox hbox = new HBox(5);
         HBox.setHgrow(nTitle, Priority.ALWAYS);
@@ -194,8 +203,15 @@ public class JExplorer2 extends Application {
      * Customize network scan locations and credentials.
      */
     private StackPane createSettingsPane() {
+        Label label = new Label("Scan Configuration");
+        label.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 18));
+
+        credList.setMinWidth(400);
+        credList.setMinHeight(100);
+        credList.setPromptText("username:\r\nusername:password\r\nusername:password|domain");
+
         networkList.setMinWidth(400);
-        networkList.setMinHeight(200);
+        networkList.setMinHeight(100);
         networkList.setPromptText("192.168.0.124\r\n192.168.0.0-192.168.255.255\r\n192.168.0.0/16");
         btnStart.disableProperty().bind(networkList.textProperty().isEmpty().or(scanningProperty));
 
@@ -209,14 +225,17 @@ public class JExplorer2 extends Application {
         vbox.setPadding(new Insets(25,25,25,25));
         vbox.setMaxWidth(0);
         vbox.setMaxHeight(0);
-        vbox.getChildren().addAll(networkList, hbox);
+        vbox.setStyle("-fx-background-color: #eeeeee; -fx-opacity: 1;");
+        vbox.getChildren().addAll(label, credList, networkList, hbox);
 
         StackPane overlay = new StackPane();
-        overlay.setAlignment(Pos.CENTER);
+        overlay.setAlignment(Pos.CENTER_LEFT);
         overlay.setStyle("-fx-background-color: rgba(127,127,127,0.2);");
         overlay.getChildren().add(vbox);
         saveClose.setOnAction(ae -> {
             if(main.getChildren().contains(overlay)) {
+                System.out.println(parseCredentials(credList.getText()));
+                System.out.println(parseNetworkLocations(networkList.getText()));
                 main.getChildren().remove(overlay);
             }
         });
@@ -283,11 +302,77 @@ public class JExplorer2 extends Application {
         }).start();
     }
 
+    class Credential {
+        private String user="", pass="", domain="";
+
+        public Credential(String username, String password, String domain) {
+            this.user = username;
+            this.pass = password;
+            this.domain = domain;
+        }
+
+        public String getUser() { return user; }
+        public String getPass() { return pass; }
+        public String getDomain() { return domain; }
+
+        public String toString() {
+            return user+":"+pass+"|"+domain;
+        }
+    }
+
+    private List<Credential> parseCredentials(String credentials) {
+        List<Credential> creds = new ArrayList<>();
+        Pattern p = Pattern.compile("(.*):(.*)(?:\\|(.*))");
+        for(String s : Arrays.asList(credentials.split("\n"))) {
+            if(!s.contains("|") && !s.endsWith("|")) s += "|";
+            Matcher m = p.matcher(s);
+            while(m.find()) {
+                if(m.groupCount() == 3) {
+                    String user = m.group(1);
+                    String pass = m.group(2);
+                    String domain = m.group(3);
+                    creds.add(new Credential(user, pass, domain));
+                }
+            }
+        }
+        return creds;
+    }
+
+    /**
+     * Returns either String address or AddressBlock objects.
+     */
+    private List<Object> parseNetworkLocations(String locations) {
+        List<Object> locs = new ArrayList<>();
+        AddressBlock block = null;
+        for(String s : Arrays.asList(locations.split("\n"))) {
+            try {
+                if(s.contains("-") || s.contains("/")) {
+                    if(s.contains("/") && AddressBlock.isCIDR(s)) {
+                        block = new AddressBlock(s);
+                    } else if(s.contains("-")) {
+                        String[] parts = s.split("-");
+                        if(parts.length == 2) {
+                            block = new AddressBlock(new Address(parts[0].trim()), new Address(parts[1].trim()));
+                        }
+                    }
+                    if(block != null) {
+                        locs.add(block);
+                    }
+                } else {
+                    locs.add(s);
+                }
+            } catch (Exception e) {
+                System.err.println(s);
+            }
+        }
+        return locs;
+    }
+
     /**
      * Scans the configured network locations for connectable SMB and FTP systems.
      * Checks for anonymous (FTP) and cycles through provided credentials to obtain file access.
      */
-    private void startNetworkScan() {
+    private void startNetworkScan(final String credentials, final String locations) {
         Platform.runLater(() -> {
             scanningProperty.set(true);
             networkIndicator.setVisible(true);
@@ -295,27 +380,36 @@ public class JExplorer2 extends Application {
         });
         System.out.println("Starting network scan.");
         new Thread(() -> {
-            try {
-                AddressBlock block = new AddressBlock("67.232.0.0/16");
-                Address addr = block.start;
-                ExecutorService es = Executors.newCachedThreadPool();
-                for(int i=0; i<32; i++) {
-                    es.execute(() -> {
-                        Address thisAddr = addr.syncNextAddress();
-                        while(thisAddr.decimal < block.end.decimal) {
-                            if(tryConnections(thisAddr)) {
-                                System.out.println("One or more successes: "+thisAddr);
-                            }
-                            thisAddr = addr.syncNextAddress();
+            List<Credential> creds = parseCredentials(credentials);
+            List<Object> locs = parseNetworkLocations(locations);
+            for(Object o : locs) {
+                if(o instanceof String) {
+                    try {
+                        Address address = new Address(o.toString());
+                        if(tryConnections(address, creds)) {
+                            System.out.println("One or more successes: "+address);
                         }
-                    });
+                    } catch (Exception ignored) {}
+                } else if(o instanceof AddressBlock) {
+                    AddressBlock block = (AddressBlock) o;
+                    Address addr = block.start;
+                    ExecutorService es = Executors.newCachedThreadPool();
+                    for(int i=0; i<32; i++) {
+                        es.execute(() -> {
+                            Address thisAddr = addr.syncNextAddress();
+                            while(thisAddr.decimal < block.end.decimal) {
+                                if(tryConnections(thisAddr, creds)) {
+                                    System.out.println("One or more successes: "+thisAddr);
+                                }
+                                thisAddr = addr.syncNextAddress();
+                            }
+                        });
+                    }
+                    try {
+                        es.shutdown();
+                        es.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+                    } catch(Exception ignored) {}
                 }
-                try {
-                    es.shutdown();
-                    es.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-                } catch(Exception ignored) {}
-            } catch (IOException e) {
-                e.printStackTrace();
             }
             Platform.runLater(() -> {
                 scanningProperty.set(false);
@@ -330,19 +424,44 @@ public class JExplorer2 extends Application {
      * Attempts SMB & FTP connections.
      * Adds successful connections to the network list.
      */
-    private boolean tryConnections(Address address) {
+    private boolean tryConnections(Address address, final List<Credential> credentials) {
         if(hasPortOpen(address.toString(), 300, 445, 139, 138, 137)) {
-            try {
-                final NtlmPasswordAuthentication auth = null;
-                final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.SAMBA, "smb://"+address.ipv4, "...", address, auth, null) ));
-                Platform.runLater(() -> {
-                    networkRoot.getChildren().add(networkItem);
-                    sortNetworkList();
-                });
-            } catch (Exception ignored) {}
+            for(Credential cred : credentials) {
+                try {
+                    final NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(cred.getDomain(), cred.getUser(), cred.getPass());
+                    try {
+                        SmbFile[] smbDomains = (new SmbFile("smb://"+address+"/", auth)).listFiles();
+                        System.out.println("Connected to ["+address+"] with ["+cred.toString()+"]");
+                        for (SmbFile domain : smbDomains) {
+                            File f = new File(domain.getPath().replace("smb:", "").replace("/", "\\"));
+                            if (f.exists()) {
+                                final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.LOCAL_SMB, f.getAbsolutePath(), f, cred.toString(), address, auth) ));
+                                Platform.runLater(() -> {
+                                    networkRoot.getChildren().add(networkItem);
+                                    sortNetworkList();
+                                });
+                            } else {
+                                try {
+                                    domain.listFiles();
+                                    final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.SAMBA, domain.getPath(), cred.toString(), address, auth, domain) ));
+                                    Platform.runLater(() -> {
+                                        networkRoot.getChildren().add(networkItem);
+                                        sortNetworkList();
+                                    });
+                                } catch (Exception ignored) { }
+                            }
+                        }
+                        break;
+                    } catch(NullPointerException npe) {
+                        npe.printStackTrace();
+                    } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }
         }
-        if(hasPortOpen(address.toString(), 300, 21)) {
+        /*if(hasPortOpen(address.toString(), 300, 21)) {
             try {
+                Credential defCred = new Credential("anonymous", "", "");
+
                 FTPClient client = new FTPClient();
                 client.setConnectTimeout(300);
                 client.connect(address.ipv4);
@@ -354,9 +473,8 @@ public class JExplorer2 extends Application {
                         sortNetworkList();
                     });
                 }
-                client.disconnect();
             } catch (Exception ignored) {}
-        }
+        }*/
         return false;
     }
 

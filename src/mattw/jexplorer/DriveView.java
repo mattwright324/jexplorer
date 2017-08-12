@@ -28,7 +28,7 @@ public class DriveView extends HBox {
         super(5);
         this.drive = drive;
         setAlignment(Pos.CENTER_LEFT);
-        if(drive.getType() == Type.LOCAL) {
+        if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
             ImageView sysIcon = new ImageView(getFileSystemIcon(drive.getFile()));
             sysIcon.setFitWidth(22);
             sysIcon.setFitHeight(22);
