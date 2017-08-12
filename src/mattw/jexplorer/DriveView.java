@@ -69,7 +69,7 @@ public class DriveView extends HBox {
 
     public long getDriveDecimal() { return drive.getAddress().decimal; }
 
-    private Image getFileSystemIcon(File file) {
+    public static Image getFileSystemIcon(File file) {
         ImageIcon icon = (ImageIcon) FileSystemView.getFileSystemView().getSystemIcon(file);
         BufferedImage bi = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
         Graphics g = bi.createGraphics();

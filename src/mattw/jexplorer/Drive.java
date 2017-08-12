@@ -71,4 +71,7 @@ public class Drive {
 
     public NtlmPasswordAuthentication getSmbAuth() { return smbAuth; }
     public SmbFile getSmbFile() { return smbFile; }
+
+    public FTPClient getFtpClient() { return ftpClient; }
+    public FTPFile getFtpFile() { return ftpFile; }
 }

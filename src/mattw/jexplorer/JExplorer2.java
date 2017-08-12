@@ -2,6 +2,7 @@ package mattw.jexplorer;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Insets;
@@ -37,6 +38,8 @@ public class JExplorer2 extends Application {
 
     private static JExplorer2 app;
 
+    private SimpleBooleanProperty scanningProperty = new SimpleBooleanProperty(false);
+    private TextArea networkList = new TextArea();
     private ProgressIndicator localIndicator, networkIndicator;
     private TreeView<Node> tree;
     private TreeItem<Node> localRoot, networkRoot;
@@ -156,7 +159,7 @@ public class JExplorer2 extends Application {
 
         tree = new TreeView<>(dummyRoot);
         tree.setShowRoot(false);
-        tree.setMaxWidth(350);
+        tree.setPrefWidth(300);
         tree.getSelectionModel().selectedItemProperty().addListener((o, ov, treeItem) -> {
             if(treeItem.getValue() instanceof DriveView) {
                 DriveView drivePane = (DriveView) treeItem.getValue();
@@ -168,6 +171,7 @@ public class JExplorer2 extends Application {
         SplitPane split = new SplitPane();
         split.setOrientation(Orientation.HORIZONTAL);
         split.getItems().addAll(tree, driveController);
+        SplitPane.setResizableWithParent(tree, Boolean.FALSE);
 
         main.setAlignment(Pos.TOP_CENTER);
         main.getChildren().addAll(split);
@@ -190,11 +194,10 @@ public class JExplorer2 extends Application {
      * Customize network scan locations and credentials.
      */
     private StackPane createSettingsPane() {
-        TextArea networkList = new TextArea();
         networkList.setMinWidth(400);
         networkList.setMinHeight(200);
         networkList.setPromptText("192.168.0.124\r\n192.168.0.0-192.168.255.255\r\n192.168.0.0/16");
-        btnStart.disableProperty().bind(networkList.textProperty().isEmpty());
+        btnStart.disableProperty().bind(networkList.textProperty().isEmpty().or(scanningProperty));
 
         Button saveClose = new Button("Save Settings");
 
@@ -264,7 +267,7 @@ public class JExplorer2 extends Application {
                     });
                 }
             });
-            System.out.println("Scan complete.");
+            System.out.println("Local Scan complete.");
             Platform.runLater(() -> {
                 localIndicator.setVisible(false);
                 localIndicator.setManaged(false);
@@ -275,7 +278,6 @@ public class JExplorer2 extends Application {
                     localRoot.getChildren().add(new TreeItem<>(error));
                 } else {
                     tree.getSelectionModel().select(localRoot.getChildren().get(0));
-                    // driveExplorer.explore(localRoot.getChildren().get(0));
                 }
             });
         }).start();
@@ -287,10 +289,11 @@ public class JExplorer2 extends Application {
      */
     private void startNetworkScan() {
         Platform.runLater(() -> {
-            btnStart.setDisable(true);
+            scanningProperty.set(true);
             networkIndicator.setVisible(true);
             networkIndicator.setManaged(true);
         });
+        System.out.println("Starting network scan.");
         new Thread(() -> {
             try {
                 AddressBlock block = new AddressBlock("67.232.0.0/16");
@@ -300,31 +303,8 @@ public class JExplorer2 extends Application {
                     es.execute(() -> {
                         Address thisAddr = addr.syncNextAddress();
                         while(thisAddr.decimal < block.end.decimal) {
-                            if(portOpen(thisAddr.toString(), 300, 445, 139, 138, 137)) {
-                                try {
-                                    final NtlmPasswordAuthentication auth = null;
-                                    final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.SAMBA, "smb://"+thisAddr.ipv4, "...", thisAddr, auth, null) ));
-                                    Platform.runLater(() -> {
-                                        networkRoot.getChildren().add(networkItem);
-                                        sortNetworkList();
-                                    });
-                                } catch (Exception ignored) {}
-                            }
-                            if(portOpen(thisAddr.toString(), 300, 21)) {
-                                try {
-                                    FTPClient client = new FTPClient();
-                                    client.setConnectTimeout(300);
-                                    client.connect(thisAddr.ipv4);
-                                    System.out.println("Connected ftp://"+thisAddr.ipv4);
-                                    if(client.login("anonymous", "")) {
-                                        final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.FTP, "ftp://"+thisAddr.ipv4, "anonymous", thisAddr, client, null) ));
-                                        Platform.runLater(() -> {
-                                            networkRoot.getChildren().add(networkItem);
-                                            sortNetworkList();
-                                        });
-                                    }
-                                    client.disconnect();
-                                } catch (Exception ignored) {}
+                            if(tryConnections(thisAddr)) {
+                                System.out.println("One or more successes: "+thisAddr);
                             }
                             thisAddr = addr.syncNextAddress();
                         }
@@ -338,18 +318,56 @@ public class JExplorer2 extends Application {
                 e.printStackTrace();
             }
             Platform.runLater(() -> {
-                btnStart.setDisable(false);
+                scanningProperty.set(false);
                 networkIndicator.setVisible(false);
                 networkIndicator.setManaged(false);
             });
+            System.out.println("Network scan complete.");
         }).start();
     }
 
-    private boolean portOpen(final String addr, int millis, int... ports) {
+    /**
+     * Attempts SMB & FTP connections.
+     * Adds successful connections to the network list.
+     */
+    private boolean tryConnections(Address address) {
+        if(hasPortOpen(address.toString(), 300, 445, 139, 138, 137)) {
+            try {
+                final NtlmPasswordAuthentication auth = null;
+                final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.SAMBA, "smb://"+address.ipv4, "...", address, auth, null) ));
+                Platform.runLater(() -> {
+                    networkRoot.getChildren().add(networkItem);
+                    sortNetworkList();
+                });
+            } catch (Exception ignored) {}
+        }
+        if(hasPortOpen(address.toString(), 300, 21)) {
+            try {
+                FTPClient client = new FTPClient();
+                client.setConnectTimeout(300);
+                client.connect(address.ipv4);
+                System.out.println("Connected ftp://"+address.ipv4);
+                if(client.login("anonymous", "")) {
+                    final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.FTP, "ftp://"+address.ipv4, "anonymous", address, client, null) ));
+                    Platform.runLater(() -> {
+                        networkRoot.getChildren().add(networkItem);
+                        sortNetworkList();
+                    });
+                }
+                client.disconnect();
+            } catch (Exception ignored) {}
+        }
+        return false;
+    }
+
+    /**
+     * Checks if at least one of provided port(s) are open.
+     */
+    private boolean hasPortOpen(final String address, int timeoutMillis, int... ports) {
         for(int port : ports) {
             try {
                 final Socket soc = new Socket();
-                soc.connect(new InetSocketAddress(addr, port), millis);
+                soc.connect(new InetSocketAddress(address, port), timeoutMillis);
                 soc.close();
                 return true;
             } catch (IOException ignored) {}
