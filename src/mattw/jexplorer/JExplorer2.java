@@ -10,9 +10,6 @@ import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -23,11 +20,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import jcifs.smb.NtlmPasswordAuthentication;
-import jcifs.smb.SmbAuthException;
 import jcifs.smb.SmbFile;
 import mattw.jexplorer.io.Address;
 import mattw.jexplorer.io.AddressBlock;
-import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,13 +34,12 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 public class JExplorer2 extends Application {
-
-    private static JExplorer2 app;
 
     private SimpleBooleanProperty scanningProperty = new SimpleBooleanProperty(false);
     private TextArea networkList = new TextArea(), credList = new TextArea();
@@ -54,11 +48,9 @@ public class JExplorer2 extends Application {
     private TreeItem<Node> localRoot, networkRoot;
     private Button btnRefresh = new Button(), btnTrash = new Button(), btnStart = new Button(), btnSettings = new Button();
     private StackPane main = new StackPane(), networkSettings = createSettingsPane();
-
+    private AtomicLong scanValue = new AtomicLong(0);
 
     private DriveController driveController;
-
-    public static JExplorer2 getApp() { return app; }
 
     public static void main(String[] args) {
         launch(args);
@@ -85,8 +77,6 @@ public class JExplorer2 extends Application {
     }
 
     public void start(Stage stage) {
-        app = this;
-
         Label lTitle = new Label("Local Machine");
         lTitle.setMaxWidth(Double.MAX_VALUE);
 
@@ -99,7 +89,6 @@ public class JExplorer2 extends Application {
         ImageView refresh = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/refresh.png").toExternalForm()));
         refresh.setFitHeight(16);
         refresh.setFitWidth(16);
-        refresh.setCursor(Cursor.HAND);
 
         btnRefresh.setGraphic(refresh);
         btnRefresh.setTooltip(new Tooltip("Refresh list of local drives."));
@@ -125,17 +114,14 @@ public class JExplorer2 extends Application {
         ImageView settings = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/settings.png").toExternalForm()));
         settings.setFitHeight(16);
         settings.setFitWidth(16);
-        settings.setCursor(Cursor.HAND);
 
         ImageView trash = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/trash.png").toExternalForm()));
         trash.setFitHeight(16);
         trash.setFitWidth(16);
-        trash.setCursor(Cursor.HAND);
 
         ImageView start = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/start.png").toExternalForm()));
         start.setFitHeight(16);
         start.setFitWidth(16);
-        start.setCursor(Cursor.HAND);
 
         btnSettings.setTooltip(new Tooltip("Configure scan."));
         btnSettings.setGraphic(settings);
@@ -162,13 +148,13 @@ public class JExplorer2 extends Application {
         networkRoot.getValue().setId("treeCell");
 
         TreeItem<Node> dummyRoot = new TreeItem<>();
-        dummyRoot.getChildren().addAll(localRoot, networkRoot);
+        dummyRoot.getChildren().add(localRoot);
+        dummyRoot.getChildren().add(networkRoot);
 
         driveController = new DriveController();
 
         tree = new TreeView<>(dummyRoot);
         tree.setShowRoot(false);
-        tree.setPrefWidth(300);
         tree.getSelectionModel().selectedItemProperty().addListener((o, ov, treeItem) -> {
             if(treeItem.getValue() instanceof DriveView) {
                 DriveView drivePane = (DriveView) treeItem.getValue();
@@ -179,6 +165,7 @@ public class JExplorer2 extends Application {
 
         SplitPane split = new SplitPane();
         split.setOrientation(Orientation.HORIZONTAL);
+        split.setDividerPositions(0.4);
         split.getItems().addAll(tree, driveController);
         SplitPane.setResizableWithParent(tree, Boolean.FALSE);
 
@@ -206,6 +193,13 @@ public class JExplorer2 extends Application {
         Label label = new Label("Scan Configuration");
         label.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 18));
 
+        CheckBox checkSmb = new CheckBox("Scan SMB (Ports 137, 138, 139, 445)");
+        checkSmb.setSelected(true);
+
+        CheckBox checkFtp = new CheckBox("Scan FTP (Port 21)");
+        checkFtp.setSelected(false);
+        checkFtp.setDisable(true);
+
         credList.setMinWidth(400);
         credList.setMinHeight(100);
         credList.setPromptText("username:\r\nusername:password\r\nusername:password|domain");
@@ -226,12 +220,18 @@ public class JExplorer2 extends Application {
         vbox.setMaxWidth(0);
         vbox.setMaxHeight(0);
         vbox.setStyle("-fx-background-color: #eeeeee; -fx-opacity: 1;");
-        vbox.getChildren().addAll(label, credList, networkList, hbox);
+        vbox.getChildren().addAll(label, checkSmb, checkFtp, credList, networkList, hbox);
+
+        VBox vbox0 = new VBox();
+        vbox0.setMaxWidth(0);
+        vbox0.setAlignment(Pos.CENTER_LEFT);
+        vbox0.setStyle("-fx-background-color: rgba(92,92,92,0.5);");
+        vbox0.getChildren().addAll(vbox);
 
         StackPane overlay = new StackPane();
         overlay.setAlignment(Pos.CENTER_LEFT);
         overlay.setStyle("-fx-background-color: rgba(127,127,127,0.2);");
-        overlay.getChildren().add(vbox);
+        overlay.getChildren().add(vbox0);
         saveClose.setOnAction(ae -> {
             if(main.getChildren().contains(overlay)) {
                 System.out.println(parseCredentials(credList.getText()));
@@ -250,13 +250,7 @@ public class JExplorer2 extends Application {
         networkRoot.getChildren().sort((left, right) -> {
             if(left.getValue() instanceof DriveView && right.getValue() instanceof DriveView) {
                 DriveView dleft = (DriveView) left.getValue(), dright = (DriveView) right.getValue();
-                if(dleft.getDriveDecimal() == dright.getDriveDecimal()) {
-                    return 0;
-                } else if(dleft.getDriveDecimal() > dright.getDriveDecimal()) {
-                    return 1;
-                } else {
-                    return -1;
-                }
+                return Long.compare(dleft.getDriveDecimal(), dright.getDriveDecimal());
             }
             return -1;
         });
@@ -375,6 +369,7 @@ public class JExplorer2 extends Application {
     private void startNetworkScan(final String credentials, final String locations) {
         Platform.runLater(() -> {
             scanningProperty.set(true);
+            networkIndicator.setProgress(-1);
             networkIndicator.setVisible(true);
             networkIndicator.setManaged(true);
         });
@@ -382,6 +377,13 @@ public class JExplorer2 extends Application {
         new Thread(() -> {
             List<Credential> creds = parseCredentials(credentials);
             List<Object> locs = parseNetworkLocations(locations);
+            long maximum = 0;
+            scanValue.set(0);
+            for(Object o : locs) {
+                if(o instanceof String) maximum++;
+                if(o instanceof AddressBlock) maximum += ((AddressBlock) o).size();
+            }
+            final double max = maximum;
             for(Object o : locs) {
                 if(o instanceof String) {
                     try {
@@ -390,6 +392,8 @@ public class JExplorer2 extends Application {
                             System.out.println("One or more successes: "+address);
                         }
                     } catch (Exception ignored) {}
+                    scanValue.incrementAndGet();
+                    Platform.runLater(() -> networkIndicator.setProgress((scanValue.get() / max)));
                 } else if(o instanceof AddressBlock) {
                     AddressBlock block = (AddressBlock) o;
                     Address addr = block.start;
@@ -402,6 +406,8 @@ public class JExplorer2 extends Application {
                                     System.out.println("One or more successes: "+thisAddr);
                                 }
                                 thisAddr = addr.syncNextAddress();
+                                scanValue.incrementAndGet();
+                                Platform.runLater(() -> networkIndicator.setProgress((scanValue.get() / max)));
                             }
                         });
                     }
@@ -425,6 +431,7 @@ public class JExplorer2 extends Application {
      * Adds successful connections to the network list.
      */
     private boolean tryConnections(Address address, final List<Credential> credentials) {
+        boolean hasConnected = false;
         if(hasPortOpen(address.toString(), 300, 445, 139, 138, 137)) {
             for(Credential cred : credentials) {
                 try {
@@ -436,6 +443,7 @@ public class JExplorer2 extends Application {
                             File f = new File(domain.getPath().replace("smb:", "").replace("/", "\\"));
                             if (f.exists()) {
                                 final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.LOCAL_SMB, f.getAbsolutePath(), f, cred.toString(), address, auth) ));
+                                hasConnected = true;
                                 Platform.runLater(() -> {
                                     networkRoot.getChildren().add(networkItem);
                                     sortNetworkList();
@@ -444,6 +452,7 @@ public class JExplorer2 extends Application {
                                 try {
                                     domain.listFiles();
                                     final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.SAMBA, domain.getPath(), cred.toString(), address, auth, domain) ));
+                                    hasConnected = true;
                                     Platform.runLater(() -> {
                                         networkRoot.getChildren().add(networkItem);
                                         sortNetworkList();
@@ -475,7 +484,7 @@ public class JExplorer2 extends Application {
                 }
             } catch (Exception ignored) {}
         }*/
-        return false;
+        return hasConnected;
     }
 
     /**

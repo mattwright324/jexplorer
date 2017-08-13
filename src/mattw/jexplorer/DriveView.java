@@ -21,9 +21,6 @@ import java.io.File;
 public class DriveView extends HBox {
     private Drive drive;
 
-    private final Image SMB_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/samba.png").toExternalForm());
-    private final Image FTP_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/ftp.png").toExternalForm());
-
     public DriveView(Drive drive) {
         super(5);
         this.drive = drive;
@@ -37,6 +34,7 @@ public class DriveView extends HBox {
 
             getChildren().addAll(sysIcon, path);
         } else if(drive.getType() == Type.SAMBA) {
+            Image SMB_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/samba.png").toExternalForm());
             ImageView icon = new ImageView(SMB_ICON);
             icon.setFitWidth(30);
             icon.setFitHeight(30);
@@ -50,6 +48,7 @@ public class DriveView extends HBox {
 
             getChildren().addAll(icon, vbox);
         } else if(drive.getType() == Type.FTP) {
+            Image FTP_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/ftp.png").toExternalForm());
             ImageView icon = new ImageView(FTP_ICON);
             icon.setFitWidth(30);
             icon.setFitHeight(30);
@@ -71,10 +70,13 @@ public class DriveView extends HBox {
 
     public static Image getFileSystemIcon(File file) {
         ImageIcon icon = (ImageIcon) FileSystemView.getFileSystemView().getSystemIcon(file);
-        BufferedImage bi = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
-        Graphics g = bi.createGraphics();
-        icon.paintIcon(null, g, 0,0);
-        g.dispose();
-        return SwingFXUtils.toFXImage(bi, null);
+        if (icon != null) {
+            BufferedImage bi = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+            Graphics g = bi.createGraphics();
+            icon.paintIcon(null, g, 0,0);
+            g.dispose();
+            return SwingFXUtils.toFXImage(bi, null);
+        }
+        return DriveController.FILE_ICON;
     }
 }

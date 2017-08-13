@@ -1,6 +1,8 @@
 package mattw.jexplorer;
 
 import javafx.application.Platform;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -17,22 +19,25 @@ import org.apache.commons.net.ftp.FTPFile;
 import java.io.File;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.Stack;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Controller for a selected drive in the TreeView.
  */
 public class DriveController extends StackPane {
+    static final Image FILE_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/mattw/jexplorer/img/file.png").toExternalForm());
+    private static final Image FOLDER_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/mattw/jexplorer/img/folder.png").toExternalForm());
+
     private DriveExplorer explorer = new DriveExplorer();
     private Label pleaseSelect = new Label("Please select a drive.");
+    private StackPane loading = new StackPane();
+    private TextField lastFile = new TextField("");
 
     /**
      * Tabbed file explorer, search, and about for each selected drive.
      */
-    private class DriveExplorer extends TabPane {
+    private static class DriveExplorer extends TabPane {
         private final Image BACK_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/back.png").toExternalForm());
         private final Image HOME_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/home.png").toExternalForm());
         private final Image RELOAD_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/reload.png").toExternalForm());
@@ -44,6 +49,8 @@ public class DriveController extends StackPane {
         private TextField currentPath = new TextField();
         private Button btnBack = new Button(), btnHome = new Button(), btnReload = new Button();
         private ComboBox<String> orderBy = new ComboBox<>();
+        private SimpleBooleanProperty listingProperty = new SimpleBooleanProperty(false);
+        private SimpleStringProperty currentlyParsingFileProperty = new SimpleStringProperty();
 
         public DriveExplorer() {}
 
@@ -51,6 +58,12 @@ public class DriveController extends StackPane {
             this.drive = drive;
             if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
                 homeDir = new FileWrapper(drive.getFile());
+                listFiles(homeDir);
+            } else if(drive.getType() == Type.SAMBA) {
+                homeDir = new FileWrapper(drive.getSmbFile(), drive.getSmbAuth());
+                listFiles(homeDir);
+            } else if(drive.getType() == Type.FTP) {
+                homeDir = new FileWrapper(drive.getFtpFile(), drive.getFtpClient());
                 listFiles(homeDir);
             }
 
@@ -94,7 +107,7 @@ public class DriveController extends StackPane {
             currentPath.setMaxWidth(Double.MAX_VALUE);
             HBox.setHgrow(currentPath, Priority.ALWAYS);
 
-            orderBy.getItems().addAll("By Directory", "By Name", "By Size", "By Date");
+            orderBy.getItems().addAll("By Directory", "By Name", "By Size", "By Date", "By File Count");
             orderBy.getSelectionModel().select(0);
 
             HBox hbox = new HBox(5);
@@ -155,45 +168,90 @@ public class DriveController extends StackPane {
                 case 3:
                     fileList.getItems().sort(Comparator.comparing(FileWrapper::lastModified).reversed());
                     break;
+                case 4:
+                    fileList.getItems().sort(Comparator.comparing(FileWrapper::getFileCount).reversed());
+                    break;
                 default:
                     fileList.getItems().sort(Comparator.comparing(FileWrapper::isDirectory).reversed().thenComparing(FileWrapper::getFileNameLowercase));
 
             }
         }
 
+        /**
+         * Wraps the directory's files and displays them.
+         */
         private void listFiles(FileWrapper dir) {
-            crumbs.push(dir);
-            Platform.runLater(() -> {
-                fileList.getItems().clear();
-                currentPath.setText(dir.getPath());
-            });
-            Arrays.stream(dir.getFile().listFiles())
-                    .map(f -> new FileWrapper(f))
-                    .forEach(fw -> {
-                        fw.setOnMouseClicked(me -> {
-                            if(me.getClickCount() == 2 && fw.isDirectory()) {
-                                listFiles(fw);
-                            }
-                        });
-                        Platform.runLater(() -> fileList.getItems().add(fw));
-                    });
-            sortFileList(orderBy.getSelectionModel().getSelectedIndex());
+            new Thread(() -> {
+                crumbs.push(dir);
+                listingProperty.set(true);
+                Platform.runLater(() -> {
+                    fileList.getItems().stream().forEach(fw -> fw.setOnMouseClicked(null));
+                    fileList.getItems().clear();
+                    currentPath.setText(dir.getPath());
+                });
+                List<FileWrapper> files = new ArrayList<>();
+                if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
+                    files.addAll(Arrays.stream(dir.getFile().listFiles())
+                            .map(FileWrapper::new)
+                            .peek(fw ->{
+                                fw.setOnMouseClicked(me -> {
+                                    if(me.getClickCount() == 2 && fw.isDirectory() && fw.isAccessible()) {
+                                        listFiles(fw);
+                                    }
+                                });
+                                Platform.runLater(() -> currentlyParsingFileProperty.set(fw.getFileName()));
+                            }).collect(Collectors.toList()));
+                } else if(drive.getType() == Type.SAMBA) {
+                    try {
+                        files.addAll(Arrays.stream(dir.getSmbFile().listFiles())
+                                .map(smbFile -> new FileWrapper(smbFile, dir.getAuth()))
+                                .peek(fw -> {
+                                    fw.setOnMouseClicked(me -> {
+                                        if (me.getClickCount() == 2 && fw.isDirectory() && fw.isAccessible()) {
+                                            listFiles(fw);
+                                        }
+                                    });
+                                    Platform.runLater(() -> currentlyParsingFileProperty.set(fw.getFileName()));
+                                }).collect(Collectors.toList()));
+                    } catch (Exception ignored) {}
+                } else if(drive.getType() == Type.FTP) {
+                    try {
+                        files.addAll(Arrays.stream(dir.getFtpClient().listFiles())
+                                .map(ftpFile -> new FileWrapper(ftpFile, dir.getFtpClient()))
+                                .peek(fw -> {
+                                    fw.setOnMouseClicked(me -> {
+                                        if(me.getClickCount() == 2 && fw.isDirectory() && fw.isAccessible()) {
+                                            listFiles(fw);
+                                        }
+                                    });
+                                    Platform.runLater(() -> currentlyParsingFileProperty.set(fw.getFileName()));
+                                }).collect(Collectors.toList()));
+                    } catch (Exception ignored) {}
+                }
+                Platform.runLater(() -> {
+                    fileList.getItems().addAll(files);
+                    sortFileList(orderBy.getSelectionModel().getSelectedIndex());
+                });
+                listingProperty.set(false);
+            }).start();
         }
 
-        /**
-         * Wrapper for similar functions between File, SmbFile, and FTPFile.
-         */
-        private class FileWrapper extends HBox {
-            private final Image FILE_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/file.png").toExternalForm());
-            private final Image FOLDER_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/folder.png").toExternalForm());
+        public Drive getDrive() { return drive; }
 
+        /**
+         * Wrapper for similar functions between File, SmbFile, and FTPFile/FTPClient.
+         */
+        private static class FileWrapper extends HBox {
             private File file;
             private NtlmPasswordAuthentication auth;
             private SmbFile smbFile;
             private FTPClient ftpClient;
             private FTPFile ftpFile;
-
             private SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a");
+
+            private boolean accessible = true;
+            private long fileCount = -1;
+
             public FileWrapper(File file) {
                 super(10);
                 setAlignment(Pos.CENTER_LEFT);
@@ -203,16 +261,16 @@ public class DriveController extends StackPane {
                 sysIcon.setFitWidth(22);
                 sysIcon.setFitHeight(22);
 
-                Label fileName = new Label(file.getName());
-                fileName.setMaxWidth(Double.MAX_VALUE);
-                HBox.setHgrow(fileName, Priority.ALWAYS);
+                if(isDirectory()) {
+                    try {
+                        fileCount = file.listFiles().length;
+                    } catch (Exception e) {
+                        accessible = false;
+                    }
+                }
 
-                Label fileSize = new Label(isDirectory() ? "" : readableFileSize(fileSize()));
-                fileSize.setPadding(new Insets(0, 5, 0, 5));
-                fileSize.setStyle("-fx-text-fill: cornflowerblue; -fx-background-color: rgba(127,127,127,0.1); -fx-background-radius: 5;");
-
-                Label fileDate = new Label(sdf.format(new Date(lastModified())));
-                getChildren().addAll(sysIcon, fileName, fileSize, fileDate);
+                getChildren().add(sysIcon);
+                build();
             }
 
             public FileWrapper(SmbFile smbFile, NtlmPasswordAuthentication auth) {
@@ -225,15 +283,16 @@ public class DriveController extends StackPane {
                 sysIcon.setFitWidth(22);
                 sysIcon.setFitHeight(22);
 
-                Label fileName = new Label(smbFile.getName());
-                fileName.setMaxWidth(Double.MAX_VALUE);
-                HBox.setHgrow(fileName, Priority.ALWAYS);
+                if(isDirectory()) {
+                    try {
+                        fileCount = smbFile.listFiles().length;
+                    } catch (Exception e) {
+                        accessible = false;
+                    }
+                }
 
-                Label fileSize = new Label(isDirectory() ? "" : readableFileSize(fileSize()));
-                fileSize.setStyle("-fx-text-fill: royalblue; -fx-background-color: rgba(127,127,127,0.1); -fx-background-radius: 5;");
-
-                Label fileDate = new Label(sdf.format(new Date(lastModified())));
-                getChildren().addAll(sysIcon, fileName, fileSize, fileDate);
+                getChildren().add(sysIcon);
+                build();
             }
 
             public FileWrapper(FTPFile ftpFile, FTPClient ftpClient) {
@@ -246,15 +305,41 @@ public class DriveController extends StackPane {
                 sysIcon.setFitWidth(22);
                 sysIcon.setFitHeight(22);
 
-                Label fileName = new Label(ftpFile.getName());
+                if(isDirectory()) {
+                    try {
+                        fileCount = ftpClient.listFiles().length;
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        accessible = false;
+                    }
+                }
+
+                getChildren().add(sysIcon);
+                build();
+            }
+
+            private void build() {
+                Label fileName = new Label(getFileName());
                 fileName.setMaxWidth(Double.MAX_VALUE);
                 HBox.setHgrow(fileName, Priority.ALWAYS);
 
-                Label fileSize = new Label(isDirectory() ? "" : readableFileSize(fileSize()));
-                fileSize.setStyle("-fx-text-fill: royalblue; -fx-background-color: rgba(127,127,127,0.1); -fx-background-radius: 5;");
+                Label fileSize = new Label(isDirectory() ? isAccessible() ? fileCount+" files" : "no access" : readableFileSize(fileSize()));
+                fileSize.setPadding(new Insets(0, 5, 0, 5));
+                if(isDirectory()) {
+                    fileSize.setStyle("-fx-text-fill: darkgray; -fx-background-color: rgba(127,127,127,0.05); -fx-background-radius: 5;");
+                } else {
+                    fileSize.setStyle("-fx-text-fill: navy; -fx-background-color: rgba(127,127,127,0.05); -fx-background-radius: 5;");
+                }
+                if(!isAccessible()) {
+                    setStyle("-fx-background-color: rgba(255,127,127,0.1)");
+                }
 
                 Label fileDate = new Label(sdf.format(new Date(lastModified())));
-                getChildren().addAll(sysIcon, fileName, fileSize, fileDate);
+                getChildren().addAll(fileName, fileSize, fileDate);
+            }
+
+            public long getFileCount() {
+                return fileCount;
             }
 
             public long lastModified() {
@@ -278,11 +363,15 @@ public class DriveController extends StackPane {
                 return false;
             }
 
-            public String getFileNameLowercase() {
-                if(file != null) return file.getName().toLowerCase();
-                if(smbFile != null) return smbFile.getName().toLowerCase();
-                if(ftpFile != null) return ftpFile.getName().toLowerCase();
+            public String getFileName() {
+                if(file != null) return file.getName();
+                if(smbFile != null) return smbFile.getName();
+                if(ftpFile != null) return ftpFile.getName();
                 return "";
+            }
+
+            public String getFileNameLowercase() {
+                return getFileName().toLowerCase();
             }
 
             public String getPath() {
@@ -291,6 +380,8 @@ public class DriveController extends StackPane {
                 if(ftpFile != null)  try { return ftpClient.printWorkingDirectory()+"/"+ftpFile.getName(); } catch (Exception ignored) {}
                 return "\\\\file_path_error\\";
             }
+
+            public boolean isAccessible() { return accessible; }
 
             public File getFile() { return file; }
 
@@ -310,32 +401,59 @@ public class DriveController extends StackPane {
                 int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
                 return new DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " " + units[digitGroups];
             }
-
-
         }
-
-        public Drive getDrive() { return drive; }
     }
 
     public DriveController() {
         setAlignment(Pos.CENTER);
         exploreDrive(null);
+        pleaseSelect.setStyle("-fx-text-fill: gray;");
+
+        ProgressIndicator ind = new ProgressIndicator();
+        ind.setMaxWidth(50);
+        ind.setMaxHeight(50);
+
+        Label label = new Label("Loading file(s):");
+        label.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 18));
+
+        lastFile.setEditable(false);
+        lastFile.setMaxWidth(500);
+        lastFile.setPrefWidth(500);
+
+        VBox vbox = new VBox(10);
+        vbox.setAlignment(Pos.CENTER);
+        vbox.getChildren().addAll(ind, label, lastFile);
+        vbox.setPadding(new Insets(25));
+
+        loading.setManaged(false);
+        loading.setVisible(false);
+        loading.setStyle("-fx-background-color: rgba(127, 127, 127, 0.1);");
+        loading.setAlignment(Pos.CENTER);
+        loading.getChildren().addAll(vbox);
     }
 
     public DriveExplorer getExplorer() { return explorer; }
 
     public void exploreDrive(Drive drive) {
-        if(drive == null) {
-            setAlignment(Pos.CENTER);
-            getChildren().clear();
-            pleaseSelect.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 24));
-            getChildren().add(pleaseSelect);
-        } else {
-            if(!drive.equals(explorer.getDrive())) {
-                explorer = new DriveExplorer(drive);
+        Platform.runLater(() -> {
+            if(drive == null) {
+                setAlignment(Pos.CENTER);
                 getChildren().clear();
-                getChildren().add(explorer);
+                pleaseSelect.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 24));
+                getChildren().add(pleaseSelect);
+            } else {
+                if(!drive.equals(explorer.getDrive())) {
+                    explorer = new DriveExplorer(drive);
+                    getChildren().clear();
+                    getChildren().addAll(explorer, loading);
+                    lastFile.textProperty().unbind();
+                    loading.managedProperty().unbind();
+                    loading.visibleProperty().unbind();
+                    loading.managedProperty().bind(explorer.listingProperty);
+                    loading.visibleProperty().bind(explorer.listingProperty);
+                    lastFile.textProperty().bind(explorer.currentlyParsingFileProperty);
+                }
             }
-        }
+        });
     }
 }
