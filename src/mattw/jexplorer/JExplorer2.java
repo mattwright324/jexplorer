@@ -6,7 +6,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.Insets;
-import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -23,6 +22,7 @@ import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
 import mattw.jexplorer.io.Address;
 import mattw.jexplorer.io.AddressBlock;
+import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,6 +41,7 @@ import java.util.stream.IntStream;
 
 public class JExplorer2 extends Application {
 
+    private NewConfig config = new NewConfig();
     private SimpleBooleanProperty scanningProperty = new SimpleBooleanProperty(false);
     private TextArea networkList = new TextArea(), credList = new TextArea();
     private ProgressIndicator localIndicator, networkIndicator;
@@ -49,6 +50,7 @@ public class JExplorer2 extends Application {
     private Button btnRefresh = new Button(), btnTrash = new Button(), btnStart = new Button(), btnSettings = new Button();
     private StackPane main = new StackPane(), networkSettings = createSettingsPane();
     private AtomicLong scanValue = new AtomicLong(0);
+    private Label scanPosition = new Label(". : . : .");
 
     private DriveController driveController;
 
@@ -102,12 +104,6 @@ public class JExplorer2 extends Application {
         localRoot = new TreeItem<>(lbox);
         localRoot.getValue().setId("treeCell");
 
-        networkIndicator = new ProgressIndicator();
-        networkIndicator.setVisible(false);
-        networkIndicator.setManaged(false);
-        networkIndicator.setMaxWidth(20);
-        networkIndicator.setMaxHeight(20);
-
         Label nTitle = new Label("Network Scan");
         nTitle.setMaxWidth(Double.MAX_VALUE);
 
@@ -142,7 +138,7 @@ public class JExplorer2 extends Application {
         HBox hbox = new HBox(5);
         HBox.setHgrow(nTitle, Priority.ALWAYS);
         hbox.setAlignment(Pos.CENTER_LEFT);
-        hbox.getChildren().addAll(nTitle, networkIndicator, btnTrash, btnStart, btnSettings);
+        hbox.getChildren().addAll(nTitle, btnTrash, btnStart, btnSettings);
 
         networkRoot = new TreeItem<>(hbox);
         networkRoot.getValue().setId("treeCell");
@@ -162,12 +158,29 @@ public class JExplorer2 extends Application {
             }
         });
         tree.setCellFactory((callback) -> new MyTreeCell());
+        VBox.setVgrow(tree, Priority.ALWAYS);
+
+        networkIndicator = new ProgressBar();
+        networkIndicator.setVisible(false);
+        networkIndicator.setManaged(false);
+        networkIndicator.setMaxWidth(Double.MAX_VALUE);
+        networkIndicator.setMaxHeight(30);
+        networkIndicator.setPadding(new Insets(0,5,0,5));
+
+        scanPosition.setPadding(new Insets(0,5,5,5));
+        scanPosition.managedProperty().bind(networkIndicator.managedProperty());
+        scanPosition.visibleProperty().bind(networkIndicator.managedProperty());
+
+        VBox vbox = new VBox(5);
+        vbox.setAlignment(Pos.TOP_CENTER);
+        vbox.setFillWidth(true);
+        vbox.getChildren().addAll(tree, networkIndicator, scanPosition);
 
         SplitPane split = new SplitPane();
         split.setOrientation(Orientation.HORIZONTAL);
         split.setDividerPositions(0.4);
-        split.getItems().addAll(tree, driveController);
-        SplitPane.setResizableWithParent(tree, Boolean.FALSE);
+        split.getItems().addAll(vbox, driveController);
+        SplitPane.setResizableWithParent(vbox, Boolean.FALSE);
 
         main.setAlignment(Pos.TOP_CENTER);
         main.getChildren().addAll(split);
@@ -190,23 +203,30 @@ public class JExplorer2 extends Application {
      * Customize network scan locations and credentials.
      */
     private StackPane createSettingsPane() {
+        try {
+            config.load();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         Label label = new Label("Scan Configuration");
         label.setFont(Font.font("Arial", FontWeight.SEMI_BOLD, 18));
 
         CheckBox checkSmb = new CheckBox("Scan SMB (Ports 137, 138, 139, 445)");
-        checkSmb.setSelected(true);
+        checkSmb.setSelected(config.scanSmb);
 
         CheckBox checkFtp = new CheckBox("Scan FTP (Port 21)");
-        checkFtp.setSelected(false);
-        checkFtp.setDisable(true);
+        checkFtp.setSelected(config.scanFtp);
 
         credList.setMinWidth(400);
         credList.setMinHeight(100);
         credList.setPromptText("username:\r\nusername:password\r\nusername:password|domain");
+        credList.setText(config.credentialsList);
 
         networkList.setMinWidth(400);
         networkList.setMinHeight(100);
         networkList.setPromptText("192.168.0.124\r\n192.168.0.0-192.168.255.255\r\n192.168.0.0/16");
+        networkList.setText(config.networksList);
         btnStart.disableProperty().bind(networkList.textProperty().isEmpty().or(scanningProperty));
 
         Button saveClose = new Button("Save Settings");
@@ -234,8 +254,11 @@ public class JExplorer2 extends Application {
         overlay.getChildren().add(vbox0);
         saveClose.setOnAction(ae -> {
             if(main.getChildren().contains(overlay)) {
-                System.out.println(parseCredentials(credList.getText()));
-                System.out.println(parseNetworkLocations(networkList.getText()));
+                config.setScanSmb(checkSmb.isSelected());
+                config.setScanFtp(checkFtp.isSelected());
+                config.setCredentials(credList.getText());
+                config.setNetworks(networkList.getText());
+                try { config.save(); } catch (Exception e) { e.printStackTrace(); }
                 main.getChildren().remove(overlay);
             }
         });
@@ -386,6 +409,7 @@ public class JExplorer2 extends Application {
             final double max = maximum;
             for(Object o : locs) {
                 if(o instanceof String) {
+                    Platform.runLater(() -> scanPosition.setText(o.toString()));
                     try {
                         Address address = new Address(o.toString());
                         if(tryConnections(address, creds)) {
@@ -402,6 +426,8 @@ public class JExplorer2 extends Application {
                         es.execute(() -> {
                             Address thisAddr = addr.syncNextAddress();
                             while(thisAddr.decimal < block.end.decimal) {
+                                final Address a = thisAddr;
+                                Platform.runLater(() -> scanPosition.setText(a.toString()));
                                 if(tryConnections(thisAddr, creds)) {
                                     System.out.println("One or more successes: "+thisAddr);
                                 }
@@ -432,7 +458,7 @@ public class JExplorer2 extends Application {
      */
     private boolean tryConnections(Address address, final List<Credential> credentials) {
         boolean hasConnected = false;
-        if(hasPortOpen(address.toString(), 300, 445, 139, 138, 137)) {
+        if(config.scanSmb && hasPortOpen(address.toString(), 300, 445, 139, 138, 137)) {
             for(Credential cred : credentials) {
                 try {
                     final NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication(cred.getDomain(), cred.getUser(), cred.getPass());
@@ -467,23 +493,25 @@ public class JExplorer2 extends Application {
                 } catch (Exception ignored) {}
             }
         }
-        /*if(hasPortOpen(address.toString(), 300, 21)) {
-            try {
-                Credential defCred = new Credential("anonymous", "", "");
-
-                FTPClient client = new FTPClient();
-                client.setConnectTimeout(300);
-                client.connect(address.ipv4);
-                System.out.println("Connected ftp://"+address.ipv4);
-                if(client.login("anonymous", "")) {
-                    final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.FTP, "ftp://"+address.ipv4, "anonymous", address, client, null) ));
-                    Platform.runLater(() -> {
-                        networkRoot.getChildren().add(networkItem);
-                        sortNetworkList();
-                    });
-                }
-            } catch (Exception ignored) {}
-        }*/
+        if(config.scanFtp && hasPortOpen(address.toString(), 300, 21)) {
+            for(Credential cred : credentials) {
+                try {
+                    // Credential defCred = new Credential("anonymous", "", "");
+                    FTPClient client = new FTPClient();
+                    client.setConnectTimeout(300);
+                    client.connect(address.ipv4);
+                    System.out.println("Connected ftp://"+address.ipv4);
+                    if(client.login(cred.getUser(), cred.getPass())) {
+                        final TreeItem<Node> networkItem = new TreeItem<>(new DriveView( new Drive(Type.FTP, "ftp://"+address.ipv4, cred.toString(), address, client, null) ));
+                        Platform.runLater(() -> {
+                            networkRoot.getChildren().add(networkItem);
+                            sortNetworkList();
+                        });
+                        break;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
         return hasConnected;
     }
 

@@ -186,7 +186,6 @@ public class DriveController extends StackPane {
                 listingProperty.set(true);
                 Platform.runLater(() -> {
                     fileList.getItems().stream().forEach(fw -> fw.setOnMouseClicked(null));
-                    fileList.getItems().clear();
                     currentPath.setText(dir.getPath());
                 });
                 List<FileWrapper> files = new ArrayList<>();
@@ -229,6 +228,7 @@ public class DriveController extends StackPane {
                     } catch (Exception ignored) {}
                 }
                 Platform.runLater(() -> {
+                    fileList.getItems().clear();
                     fileList.getItems().addAll(files);
                     sortFileList(orderBy.getSelectionModel().getSelectedIndex());
                 });

@@ -39,12 +39,11 @@ public class DriveView extends HBox {
             icon.setFitWidth(30);
             icon.setFitHeight(30);
 
-            Label hostName = new Label(drive.getHostName());
-            Label path = new Label(drive.getPath());
-            path.setStyle("-fx-text-fill: lightgray");
+            Label title = new Label(drive.getPath());
+            Label subTitle = new Label(drive.getSignIn());
 
             VBox vbox = new VBox();
-            vbox.getChildren().addAll(hostName, path);
+            vbox.getChildren().addAll(title, subTitle);
 
             getChildren().addAll(icon, vbox);
         } else if(drive.getType() == Type.FTP) {
@@ -53,14 +52,13 @@ public class DriveView extends HBox {
             icon.setFitWidth(30);
             icon.setFitHeight(30);
 
-            Label hostName = new Label(drive.getHostName());
-            Label path = new Label(drive.getPath());
-            path.setStyle("-fx-text-fill: lightgray");
+            Label title = new Label(drive.getPath());
+            Label subTitle = new Label(drive.getSignIn());
 
             VBox vbox = new VBox();
-            vbox.getChildren().addAll(hostName, vbox);
+            vbox.getChildren().addAll(title, subTitle);
 
-            getChildren().addAll(icon, path);
+            getChildren().addAll(icon, vbox);
         }
     }
 

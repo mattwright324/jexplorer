@@ -8,3 +8,6 @@
 jexplorer.iml
 out/
 jexplorer.config
+META-INF/
+*.mf
+jexplorer.json

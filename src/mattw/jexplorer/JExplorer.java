@@ -54,7 +54,7 @@ public class JExplorer extends Application {
 
 	private static FileManager fileManager;
 
-	private ExplorerConfig config = new ExplorerConfig();
+	private OldConfig config = new OldConfig();
 	private StackPane layout, main, settings;
 	private ComboBox<String> orderBy;
 	private ProgressIndicator progress;

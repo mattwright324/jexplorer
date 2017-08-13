@@ -19,7 +19,7 @@ import jcifs.util.Base64;
 import mattw.jexplorer.io.Address;
 import mattw.jexplorer.io.AddressBlock;
 
-public class ExplorerConfig {
+public class OldConfig {
 	
 	private final Gson gson = new GsonBuilder().excludeFieldsWithModifiers(Modifier.FINAL).create();
 	private final File CONFIG_FILE = new File("jexplorer.config");
@@ -28,7 +28,7 @@ public class ExplorerConfig {
 	public List<AddressBlock> rangeList = new ArrayList<>();
 	public List<Login> loginList = new ArrayList<>();
 	
-	private void loadAs(ExplorerConfig config) {
+	private void loadAs(OldConfig config) {
 		setAddressList(config.addressList);
 		setRangeList(config.rangeList);
 		setLoginList(config.loginList);
@@ -124,6 +124,6 @@ public class ExplorerConfig {
 		}
 		br.close();
 		String decoded = new String(Base64.decode(json.toString()));
-		loadAs(gson.fromJson(decoded, ExplorerConfig.class));
+		loadAs(gson.fromJson(decoded, OldConfig.class));
 	}
 }
