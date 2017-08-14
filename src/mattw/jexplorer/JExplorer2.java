@@ -41,7 +41,8 @@ import java.util.stream.IntStream;
 
 public class JExplorer2 extends Application {
 
-    private NewConfig config = new NewConfig();
+    private static Stage stage;
+    private static NewConfig config = new NewConfig();
     private SimpleBooleanProperty scanningProperty = new SimpleBooleanProperty(false);
     private TextArea networkList = new TextArea(), credList = new TextArea();
     private ProgressIndicator localIndicator, networkIndicator;
@@ -57,6 +58,10 @@ public class JExplorer2 extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
+    public static Stage getStage() { return stage; }
+
+    public static NewConfig getConfig() { return config; }
 
     /**
      * Styles TreeCells in the drive selector menu.
@@ -79,6 +84,8 @@ public class JExplorer2 extends Application {
     }
 
     public void start(Stage stage) {
+        this.stage = stage;
+
         Label lTitle = new Label("Local Machine");
         lTitle.setMaxWidth(Double.MAX_VALUE);
 
@@ -123,13 +130,13 @@ public class JExplorer2 extends Application {
         btnSettings.setGraphic(settings);
         btnSettings.setOnAction(ae -> {
             if(!main.getChildren().contains(networkSettings)) {
-                main.getChildren().add(networkSettings);
+                Platform.runLater(() -> main.getChildren().add(networkSettings));
             }
         });
 
         btnTrash.setTooltip(new Tooltip("Clear results."));
         btnTrash.setGraphic(trash);
-        btnTrash.setOnAction(ae -> networkRoot.getChildren().clear());
+        btnTrash.setOnAction(ae -> Platform.runLater(() -> networkRoot.getChildren().clear()));
 
         btnStart.setTooltip(new Tooltip("Start scan."));
         btnStart.setGraphic(start);
@@ -218,6 +225,9 @@ public class JExplorer2 extends Application {
         CheckBox checkFtp = new CheckBox("Scan FTP (Port 21)");
         checkFtp.setSelected(config.scanFtp);
 
+        CheckBox inspectFtpFolders = new CheckBox("Inspect FTP Folders for contents count (slows down listing)");
+        inspectFtpFolders.setSelected(config.inspectFtpFolders);
+
         credList.setMinWidth(400);
         credList.setMinHeight(100);
         credList.setPromptText("username:\r\nusername:password\r\nusername:password|domain");
@@ -240,7 +250,7 @@ public class JExplorer2 extends Application {
         vbox.setMaxWidth(0);
         vbox.setMaxHeight(0);
         vbox.setStyle("-fx-background-color: #eeeeee; -fx-opacity: 1;");
-        vbox.getChildren().addAll(label, checkSmb, checkFtp, credList, networkList, hbox);
+        vbox.getChildren().addAll(label, checkSmb, checkFtp, inspectFtpFolders, credList, networkList, hbox);
 
         VBox vbox0 = new VBox();
         vbox0.setMaxWidth(0);
@@ -256,6 +266,7 @@ public class JExplorer2 extends Application {
             if(main.getChildren().contains(overlay)) {
                 config.setScanSmb(checkSmb.isSelected());
                 config.setScanFtp(checkFtp.isSelected());
+                config.setInspectFtpFolders(inspectFtpFolders.isSelected());
                 config.setCredentials(credList.getText());
                 config.setNetworks(networkList.getText());
                 try { config.save(); } catch (Exception e) { e.printStackTrace(); }

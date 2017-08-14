@@ -6,20 +6,36 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.DirectoryChooser;
 import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
+import jcifs.smb.SmbFileInputStream;
+import jcifs.smb.SmbFileOutputStream;
+import mattw.jexplorer.io.FilesTransferrable;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 
-import java.io.File;
+import java.awt.*;
+import java.io.*;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -43,7 +59,7 @@ public class DriveController extends StackPane {
         private final Image RELOAD_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/reload.png").toExternalForm());
 
         private Drive drive;
-        private FileWrapper homeDir;
+        private FileWrapper homeDir, currentDir;
         private Stack<FileWrapper> crumbs = new Stack<>();
         private ListView<FileWrapper> fileList = new ListView<>();
         private TextField currentPath = new TextField();
@@ -118,7 +134,46 @@ public class DriveController extends StackPane {
             hbox.setFillHeight(true);
             hbox.getChildren().addAll(btnHome, btnBack, btnReload, currentPath, orderBy);
 
+            MenuItem copy = new MenuItem();
+            copy.setOnAction(ae -> copySelected(false));
+
+            MenuItem copyAll = new MenuItem();
+            copyAll.setOnAction(ae -> copySelected(true));
+
+            MenuItem delete = new MenuItem("Delete File(s)");
+            delete.setOnAction(ae -> deleteSelected());
+
+            ContextMenu popup = new ContextMenu();
+            if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
+                copy.setText("Copy File(s) to Clipboard");
+                popup.getItems().addAll(copy, delete);
+            } else if(drive.getType() == Type.SAMBA) {
+                copy.setText("Save File(s) to...");
+                copyAll.setText("Save File(s) and Sub Dirs to...");
+                popup.getItems().addAll(copy, copyAll, delete);
+            } else if(drive.getType() == Type.FTP) {
+                copy.setText("Save File(s) to...");
+                copyAll.setText("Save File(s) and Sub Dirs to...");
+                popup.getItems().addAll(copy, copyAll, delete);
+            }
+
             fileList.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+            fileList.setContextMenu(popup);
+            fileList.setOnDragOver(de -> {
+                if(de.getGestureSource() != fileList && de.getDragboard().hasFiles()) {
+                    de.acceptTransferModes(TransferMode.COPY);
+                }
+                de.consume();
+            });
+            fileList.setOnDragDropped(de -> {
+                Dragboard db = de.getDragboard();
+                boolean success = false;
+                if(db.hasFiles()) {
+                    transferFiles(db.getFiles());
+                }
+                de.setDropCompleted(success);
+                de.consume();
+            });
             VBox.setVgrow(fileList, Priority.ALWAYS);
             orderBy.setOnAction(ae -> sortFileList(orderBy.getSelectionModel().getSelectedIndex()));
 
@@ -186,6 +241,7 @@ public class DriveController extends StackPane {
         private void listFiles(FileWrapper dir) {
             new Thread(() -> {
                 crumbs.push(dir);
+                currentDir = dir;
                 System.out.println(crumbs);
                 listingProperty.set(true);
                 Platform.runLater(() -> {
@@ -251,7 +307,131 @@ public class DriveController extends StackPane {
             }).start();
         }
 
+        /**
+         * Copy selected files to clipboard or selected location.
+         */
+        public void copySelected(boolean subDirs) {
+            if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
+                List<File> files = fileList.getSelectionModel().getSelectedItems().stream()
+                        .map(fw -> fw.getFile())
+                        .collect(Collectors.toList());
+                FilesTransferrable ft = new FilesTransferrable(files);
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(ft, ft);
+            } else if(drive.getType() == Type.SAMBA) {
+                DirectoryChooser chooser = new DirectoryChooser();
+                chooser.setTitle("Save File(s) to folder...");
+                chooser.setInitialDirectory(new File("."));
+                File dest = chooser.showDialog(JExplorer2.getStage());
+                List<SmbFile> files = fileList.getSelectionModel().getSelectedItems().stream()
+                        .map(fw -> fw.getSmbFile())
+                        .collect(Collectors.toList());
+                for(SmbFile file : files) {
+                    try {
+                        SmbFileInputStream out = new SmbFileInputStream(file);
+                        FileOutputStream fis = new FileOutputStream(new File(dest, file.getName()));
+                        byte[] buff = new byte[(int) file.length()];
+                        out.read(buff);
+                        out.close();
+                        fis.write(buff);
+                        fis.close();
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+            } else if(drive.getType() == Type.FTP) {
+                DirectoryChooser chooser = new DirectoryChooser();
+                chooser.setTitle("Save File(s) to folder...");
+                chooser.setInitialDirectory(new File("."));
+                File dest = chooser.showDialog(JExplorer2.getStage());
+                List<FTPFile> files = fileList.getSelectionModel().getSelectedItems().stream()
+                        .map(fw -> fw.getFtpFile())
+                        .collect(Collectors.toList());
+                try {
+                    drive.getFtpClient().setFileType(FTP.BINARY_FILE_TYPE);
+                    drive.getFtpClient().setFileTransferMode(FTP.BINARY_FILE_TYPE);
+                    drive.getFtpClient().enterLocalPassiveMode();
+                    drive.getFtpClient().setAutodetectUTF8(true);
+                    for(FTPFile file : files) {
+                        InputStream is = drive.getFtpClient().retrieveFileStream(file.getName());
+                        BufferedInputStream bis = new BufferedInputStream(is);
+                        FileOutputStream fos = new FileOutputStream(dest.getAbsolutePath()+"/"+file.getName());
+                        IOUtils.copy(bis, fos);
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }
+
+        /**
+         * Delete files and folders currently selected.
+         */
+        private void deleteSelected() {
+            if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
+                List<File> files = fileList.getSelectionModel().getSelectedItems().stream()
+                        .map(fw -> fw.getFile())
+                        .collect(Collectors.toList());
+                for(File file : files) {
+                    try {
+                        file.delete();
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+            } else if(drive.getType() == Type.SAMBA) {
+                List<SmbFile> files = fileList.getSelectionModel().getSelectedItems().stream()
+                        .map(fw -> fw.getSmbFile())
+                        .collect(Collectors.toList());
+                for(SmbFile file : files) {
+                    try {
+                        file.delete();
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+            } else if(drive.getType() == Type.FTP) {
+                List<FTPFile> files = fileList.getSelectionModel().getSelectedItems().stream()
+                        .map(fw -> fw.getFtpFile())
+                        .collect(Collectors.toList());
+                for(FTPFile file : files) {
+                    try {
+                        drive.getFtpClient().deleteFile(file.getName());
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+            }
+            fireReload();
+        }
+
+        /**
+         * Drag & Drop files into currently loaded directory.
+         */
+        private void transferFiles(List<File> pasteFiles) {
+            if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
+                for(File file : pasteFiles) {
+                    try {
+                        File dest = new File(currentDir.getPath()+"\\"+file.getName());
+                        Files.copy(file.toPath(), dest.toPath());
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+            } else if(drive.getType() == Type.SAMBA) {
+                for(File file : pasteFiles) {
+                    try {
+                        SmbFile dest = new SmbFile(currentDir.getSmbFile().getPath()+"\\"+file.getName(), currentDir.getAuth());
+                        if (!dest.exists()) {
+                            dest.createNewFile();
+                        }
+                        SmbFileOutputStream sfis = new SmbFileOutputStream(dest);
+                        FileInputStream is = new FileInputStream(file);
+                        sfis.write(IOUtils.toByteArray(is));
+                        sfis.close();
+                        is.close();
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+            } else if(drive.getType() == Type.FTP) {
+                for(File file : pasteFiles) {
+                    try (FileInputStream fis = new FileInputStream(file)) {
+                        drive.getFtpClient().storeFile(file.getName(), fis);
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+            }
+            fireReload();
+        }
+
         public Drive getDrive() { return drive; }
+
+        public void fireReload() { btnReload.fire(); }
 
         /**
          * Wrapper for similar functions between File, SmbFile, and FTPFile/FTPClient.
@@ -266,6 +446,7 @@ public class DriveController extends StackPane {
             private SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a");
 
             private boolean accessible = true;
+            private boolean inspectFileCount = true;
             private long fileCount = -1;
 
             public FileWrapper(File file) {
@@ -322,13 +503,12 @@ public class DriveController extends StackPane {
                 sysIcon.setFitWidth(22);
                 sysIcon.setFitHeight(22);
 
-                // TODO: listFiles() only works for current working directory.
-                if(isDirectory()) {
+                inspectFileCount = JExplorer2.getConfig().inspectFtpFolders;
+                if(inspectFileCount && isDirectory()) {
                     try {
                         ftpClient.cwd(getPath());
                         fileCount = ftpClient.listFiles().length;
                     } catch (Exception e) {
-                        e.printStackTrace();
                         accessible = false;
                     }
                 }
@@ -342,7 +522,7 @@ public class DriveController extends StackPane {
                 fileName.setMaxWidth(Double.MAX_VALUE);
                 HBox.setHgrow(fileName, Priority.ALWAYS);
 
-                Label fileSize = new Label(isDirectory() ? isAccessible() ? fileCount+" files" : "no access" : readableFileSize(fileSize()));
+                Label fileSize = new Label(isDirectory() ? isAccessible() ? inspectFileCount ? fileCount+" files" : "no inspect" : "no access" : readableFileSize(fileSize()));
                 fileSize.setPadding(new Insets(0, 5, 0, 5));
                 if(isDirectory()) {
                     fileSize.setStyle("-fx-text-fill: darkgray; -fx-background-color: rgba(127,127,127,0.05); -fx-background-radius: 5;");

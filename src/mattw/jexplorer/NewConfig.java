@@ -13,18 +13,21 @@ public class NewConfig {
 	private final File CONFIG_FILE = new File("jexplorer.json");
 
 	public boolean scanSmb = true, scanFtp = true;
+	public boolean inspectFtpFolders = true;
 	public String credentialsList = "";
 	public String networksList = "";
 	
 	private void loadAs(NewConfig config) {
 		setScanSmb(config.scanSmb);
 		setScanFtp(config.scanFtp);
+		setInspectFtpFolders(config.inspectFtpFolders);
 		setNetworks(config.networksList);
 		setCredentials(config.credentialsList);
 	}
 
 	public void setScanFtp(boolean scan) { scanFtp = scan; }
 	public void setScanSmb(boolean scan) { scanSmb = scan; }
+	public void setInspectFtpFolders(boolean inspect) { inspectFtpFolders = inspect; }
 	public void setNetworks(String list) { networksList = list; }
 	public void setCredentials(String list) { credentialsList = list; }
 	
