@@ -63,7 +63,10 @@ public class DriveController extends StackPane {
                 homeDir = new FileWrapper(drive.getSmbFile(), drive.getSmbAuth());
                 listFiles(homeDir);
             } else if(drive.getType() == Type.FTP) {
-                homeDir = new FileWrapper(drive.getFtpFile(), drive.getFtpClient());
+                String workingDirectory = "/";
+                try { workingDirectory = drive.getFtpClient().printWorkingDirectory(); } catch (Exception e) { e.printStackTrace(); }
+                System.out.println(workingDirectory);
+                homeDir = new FileWrapper(drive.getFtpFile(), drive.getFtpClient(), workingDirectory);
                 listFiles(homeDir);
             }
 
@@ -183,10 +186,18 @@ public class DriveController extends StackPane {
         private void listFiles(FileWrapper dir) {
             new Thread(() -> {
                 crumbs.push(dir);
+                System.out.println(crumbs);
                 listingProperty.set(true);
                 Platform.runLater(() -> {
                     fileList.getItems().stream().forEach(fw -> fw.setOnMouseClicked(null));
-                    currentPath.setText(dir.getPath());
+                    if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
+                        currentPath.setText(dir.getPath());
+                    } else if(drive.getType() == Type.SAMBA) {
+                        currentPath.setText(dir.getPath());
+                    } else if(drive.getType() == Type.FTP) {
+                        currentPath.setText("ftp://"+drive.getAddress()+dir.getPath());
+                    }
+
                 });
                 List<FileWrapper> files = new ArrayList<>();
                 if(drive.getType() == Type.LOCAL || drive.getType() == Type.LOCAL_SMB) {
@@ -215,8 +226,12 @@ public class DriveController extends StackPane {
                     } catch (Exception ignored) {}
                 } else if(drive.getType() == Type.FTP) {
                     try {
+                        dir.getFtpClient().cwd(dir.getPath());
+                        String workingDirectory = "/";
+                        try { workingDirectory = dir.getFtpClient().printWorkingDirectory(); } catch (Exception e) {}
+                        final String wd = workingDirectory;
                         files.addAll(Arrays.stream(dir.getFtpClient().listFiles())
-                                .map(ftpFile -> new FileWrapper(ftpFile, dir.getFtpClient()))
+                                .map(ftpFile -> new FileWrapper(ftpFile, dir.getFtpClient(), wd))
                                 .peek(fw -> {
                                     fw.setOnMouseClicked(me -> {
                                         if(me.getClickCount() == 2 && fw.isDirectory() && fw.isAccessible()) {
@@ -246,6 +261,7 @@ public class DriveController extends StackPane {
             private NtlmPasswordAuthentication auth;
             private SmbFile smbFile;
             private FTPClient ftpClient;
+            private String ftpWorkingDirectory;
             private FTPFile ftpFile;
             private SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy hh:mm a");
 
@@ -295,18 +311,21 @@ public class DriveController extends StackPane {
                 build();
             }
 
-            public FileWrapper(FTPFile ftpFile, FTPClient ftpClient) {
+            public FileWrapper(FTPFile ftpFile, FTPClient ftpClient, String workingDirectory) {
                 super(10);
                 setAlignment(Pos.CENTER_LEFT);
                 this.ftpFile = ftpFile;
                 this.ftpClient = ftpClient;
+                this.ftpWorkingDirectory = workingDirectory;
 
                 ImageView sysIcon = new ImageView(isDirectory() ? FOLDER_ICON : FILE_ICON);
                 sysIcon.setFitWidth(22);
                 sysIcon.setFitHeight(22);
 
+                // TODO: listFiles() only works for current working directory.
                 if(isDirectory()) {
                     try {
+                        ftpClient.cwd(getPath());
                         fileCount = ftpClient.listFiles().length;
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -377,8 +396,8 @@ public class DriveController extends StackPane {
             public String getPath() {
                 if(file != null) return file.getAbsolutePath();
                 if(smbFile != null) return smbFile.getPath();
-                if(ftpFile != null)  try { return ftpClient.printWorkingDirectory()+"/"+ftpFile.getName(); } catch (Exception ignored) {}
-                return "\\\\file_path_error\\";
+                if(ftpClient != null) return ftpWorkingDirectory+"/"+(ftpFile != null ? ftpFile.getName() : "");
+                return "//no_file_error/";
             }
 
             public boolean isAccessible() { return accessible; }
@@ -397,7 +416,7 @@ public class DriveController extends StackPane {
 
             private String readableFileSize(long size) {
                 if (size <= 0) return "0 B";
-                final String[] units = new String[] { "B", "kB", "MB", "GB", "TB" };
+                final String[] units = new String[] { "B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
                 int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
                 return new DecimalFormat("#,##0.#").format(size / Math.pow(1024, digitGroups)) + " " + units[digitGroups];
             }
