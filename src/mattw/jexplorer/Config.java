@@ -7,7 +7,7 @@ import com.google.gson.JsonSyntaxException;
 import java.io.*;
 import java.lang.reflect.Modifier;
 
-public class NewConfig {
+public class Config {
 	
 	private final Gson gson = new GsonBuilder().excludeFieldsWithModifiers(Modifier.FINAL).create();
 	private final File CONFIG_FILE = new File("jexplorer.json");
@@ -17,7 +17,7 @@ public class NewConfig {
 	public String credentialsList = "";
 	public String networksList = "";
 	
-	private void loadAs(NewConfig config) {
+	private void loadAs(Config config) {
 		setScanSmb(config.scanSmb);
 		setScanFtp(config.scanFtp);
 		setInspectFtpFolders(config.inspectFtpFolders);
@@ -51,6 +51,6 @@ public class NewConfig {
 			json.append(line);
 		}
 		br.close();
-		loadAs(gson.fromJson(json.toString(), NewConfig.class));
+		loadAs(gson.fromJson(json.toString(), Config.class));
 	}
 }

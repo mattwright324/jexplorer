@@ -322,7 +322,7 @@ public class DriveController extends StackPane {
                 DirectoryChooser chooser = new DirectoryChooser();
                 chooser.setTitle("Save File(s) to folder...");
                 chooser.setInitialDirectory(new File("."));
-                File dest = chooser.showDialog(JExplorer2.getStage());
+                File dest = chooser.showDialog(JExplorer.getStage());
                 List<SmbFile> files = fileList.getSelectionModel().getSelectedItems().stream()
                         .map(fw -> fw.getSmbFile())
                         .collect(Collectors.toList());
@@ -341,7 +341,7 @@ public class DriveController extends StackPane {
                 DirectoryChooser chooser = new DirectoryChooser();
                 chooser.setTitle("Save File(s) to folder...");
                 chooser.setInitialDirectory(new File("."));
-                File dest = chooser.showDialog(JExplorer2.getStage());
+                File dest = chooser.showDialog(JExplorer.getStage());
                 List<FTPFile> files = fileList.getSelectionModel().getSelectedItems().stream()
                         .map(fw -> fw.getFtpFile())
                         .collect(Collectors.toList());
@@ -504,7 +504,7 @@ public class DriveController extends StackPane {
                 sysIcon.setFitWidth(22);
                 sysIcon.setFitHeight(22);
 
-                inspectFileCount = JExplorer2.getConfig().inspectFtpFolders;
+                inspectFileCount = JExplorer.getConfig().inspectFtpFolders;
                 if(inspectFileCount && isDirectory()) {
                     try {
                         ftpClient.cwd(getPath());
