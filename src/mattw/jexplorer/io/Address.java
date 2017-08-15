@@ -17,8 +17,8 @@ public class Address {
 	
 	public Address(String ip) throws IOException {
 		if(!isIPv4(ip)) throw new IOException("Improper IPv4 format [x.x.x.x] != ["+ip+"]");
-		ipv4 = ip;
 		decimal = IPtoDEC(ip);
+		ipv4 = DECtoIP(decimal);
 	}
 	
 	public Address(long dec) {
