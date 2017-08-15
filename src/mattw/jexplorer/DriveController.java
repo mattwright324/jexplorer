@@ -138,6 +138,7 @@ public class DriveController extends StackPane {
             copy.setOnAction(ae -> copySelected(false));
 
             MenuItem copyAll = new MenuItem();
+            copyAll.setDisable(true);
             copyAll.setOnAction(ae -> copySelected(true));
 
             MenuItem delete = new MenuItem("Delete File(s)");

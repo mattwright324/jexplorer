@@ -3,6 +3,7 @@ package mattw.jexplorer;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -30,7 +31,8 @@ public class DriveView extends HBox {
             sysIcon.setFitWidth(22);
             sysIcon.setFitHeight(22);
 
-            Label path = new Label(drive.getPath());
+            Label path = new Label(drive.getPathHostName());
+            path.setTextOverrun(OverrunStyle.LEADING_ELLIPSIS);
 
             getChildren().addAll(sysIcon, path);
         } else if(drive.getType() == Type.SAMBA) {
@@ -39,8 +41,10 @@ public class DriveView extends HBox {
             icon.setFitWidth(30);
             icon.setFitHeight(30);
 
-            Label title = new Label(drive.getPath());
+            Label title = new Label(drive.getPathHostName());
+            title.setTextOverrun(OverrunStyle.LEADING_ELLIPSIS);
             Label subTitle = new Label(drive.getSignIn());
+            subTitle.setTextOverrun(OverrunStyle.LEADING_ELLIPSIS);
 
             VBox vbox = new VBox();
             vbox.getChildren().addAll(title, subTitle);
@@ -52,8 +56,10 @@ public class DriveView extends HBox {
             icon.setFitWidth(30);
             icon.setFitHeight(30);
 
-            Label title = new Label(drive.getPath());
+            Label title = new Label(drive.getPathHostName());
+            title.setTextOverrun(OverrunStyle.LEADING_ELLIPSIS);
             Label subTitle = new Label(drive.getSignIn());
+            subTitle.setTextOverrun(OverrunStyle.LEADING_ELLIPSIS);
 
             VBox vbox = new VBox();
             vbox.getChildren().addAll(title, subTitle);

@@ -15,6 +15,7 @@ import java.net.InetAddress;
 public class Drive {
     private Type driveType;
     private String drivePath;
+    private String drivePathName;
     private Address address;
     private String hostName;
     private File file;
@@ -28,7 +29,7 @@ public class Drive {
 
     public Drive(Type type, String path, File file) {
         this.driveType = type;
-        this.drivePath = path;
+        this.drivePath = drivePathName = path;
         this.file = file;
         try {
             this.address = new Address("127.0.0.1");
@@ -38,7 +39,7 @@ public class Drive {
 
     public Drive(Type type, String path, File file, String signIn, Address address, NtlmPasswordAuthentication auth) {
         this.driveType = type;
-        this.drivePath = path;
+        this.drivePath = drivePathName = path;
         this.signIn = signIn;
         this.file = file;
         this.hostName = findHostName(this.address = address);
@@ -47,7 +48,7 @@ public class Drive {
 
     public Drive(Type type, String path, String signIn, Address address, NtlmPasswordAuthentication auth, SmbFile file) {
         this.driveType = type;
-        this.drivePath = path;
+        this.drivePath = drivePathName = path;
         this.signIn = signIn;
         this.hostName = findHostName(this.address = address);
         this.smbAuth = auth;
@@ -56,7 +57,7 @@ public class Drive {
 
     public Drive(Type type, String path, String signIn, Address address, FTPClient client, FTPFile file) {
         this.driveType = type;
-        this.drivePath = path;
+        this.drivePath = drivePathName = path;
         this.signIn = signIn;
         this.hostName = findHostName(this.address = address);
         this.ftpClient = client;
@@ -65,7 +66,9 @@ public class Drive {
 
     private String findHostName(Address address) {
         try {
-            return InetAddress.getByName(address.ipv4).getHostName();
+            String hostName = InetAddress.getByName(address.ipv4).getHostName();
+            drivePathName = drivePathName.replace(address.ipv4, hostName);
+            return hostName;
         } catch (Exception ignored) {
             return null;
         }
@@ -77,6 +80,7 @@ public class Drive {
 
     public Type getType() { return driveType; }
     public String getPath() { return drivePath; }
+    public String getPathHostName() { return drivePathName; }
     public Address getAddress() { return address; }
     public String getHostName() { return hostName; }
     public File getFile() { return file; }

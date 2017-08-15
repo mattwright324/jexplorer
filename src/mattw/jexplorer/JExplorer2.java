@@ -230,12 +230,12 @@ public class JExplorer2 extends Application {
 
         credList.setMinWidth(400);
         credList.setMinHeight(100);
-        credList.setPromptText("username:\r\nusername:password\r\nusername:password|domain");
+        credList.setPromptText("username:\r\nusername:password\r\nusername:password|domain\r\n# Add Comments");
         credList.setText(config.credentialsList);
 
         networkList.setMinWidth(400);
         networkList.setMinHeight(100);
-        networkList.setPromptText("192.168.0.124\r\n192.168.0.0-192.168.255.255\r\n192.168.0.0/16");
+        networkList.setPromptText("192.168.0.124\r\n192.168.0.0-192.168.255.255\r\n192.168.0.0/16\r\n# Add Comments");
         networkList.setText(config.networksList);
         btnStart.disableProperty().bind(networkList.textProperty().isEmpty().or(scanningProperty));
 
@@ -352,14 +352,16 @@ public class JExplorer2 extends Application {
         List<Credential> creds = new ArrayList<>();
         Pattern p = Pattern.compile("(.*):(.*)(?:\\|(.*))");
         for(String s : Arrays.asList(credentials.split("\n"))) {
-            if(!s.contains("|") && !s.endsWith("|")) s += "|";
-            Matcher m = p.matcher(s);
-            while(m.find()) {
-                if(m.groupCount() == 3) {
-                    String user = m.group(1);
-                    String pass = m.group(2);
-                    String domain = m.group(3);
-                    creds.add(new Credential(user, pass, domain));
+            if(!s.startsWith("#")) {
+                if(!s.contains("|") && !s.endsWith("|")) s += "|";
+                Matcher m = p.matcher(s);
+                while(m.find()) {
+                    if(m.groupCount() == 3) {
+                        String user = m.group(1);
+                        String pass = m.group(2);
+                        String domain = m.group(3);
+                        creds.add(new Credential(user, pass, domain));
+                    }
                 }
             }
         }
@@ -373,24 +375,26 @@ public class JExplorer2 extends Application {
         List<Object> locs = new ArrayList<>();
         AddressBlock block = null;
         for(String s : Arrays.asList(locations.split("\n"))) {
-            try {
-                if(s.contains("-") || s.contains("/")) {
-                    if(s.contains("/") && AddressBlock.isCIDR(s)) {
-                        block = new AddressBlock(s);
-                    } else if(s.contains("-")) {
-                        String[] parts = s.split("-");
-                        if(parts.length == 2) {
-                            block = new AddressBlock(new Address(parts[0].trim()), new Address(parts[1].trim()));
+            if(!s.startsWith("#")) {
+                try {
+                    if(s.contains("-") || s.contains("/")) {
+                        if(s.contains("/") && AddressBlock.isCIDR(s)) {
+                            block = new AddressBlock(s);
+                        } else if(s.contains("-")) {
+                            String[] parts = s.split("-");
+                            if(parts.length == 2) {
+                                block = new AddressBlock(new Address(parts[0].trim()), new Address(parts[1].trim()));
+                            }
                         }
+                        if(block != null) {
+                            locs.add(block);
+                        }
+                    } else {
+                        locs.add(s);
                     }
-                    if(block != null) {
-                        locs.add(block);
-                    }
-                } else {
-                    locs.add(s);
+                } catch (Exception e) {
+                    System.err.println(s);
                 }
-            } catch (Exception e) {
-                System.err.println(s);
             }
         }
         return locs;
@@ -507,7 +511,6 @@ public class JExplorer2 extends Application {
         if(config.scanFtp && hasPortOpen(address.toString(), 300, 21)) {
             for(Credential cred : credentials) {
                 try {
-                    // Credential defCred = new Credential("anonymous", "", "");
                     FTPClient client = new FTPClient();
                     client.setConnectTimeout(300);
                     client.connect(address.ipv4);
