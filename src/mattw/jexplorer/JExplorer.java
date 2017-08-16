@@ -26,6 +26,7 @@ import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -377,26 +378,31 @@ public class JExplorer extends Application {
         for(String s : Arrays.asList(locations.split("\n"))) {
             if(!s.startsWith("#")) {
                 try {
-                    if(s.contains("-") || s.contains("/")) {
-                        if(s.contains("/") && AddressBlock.isCIDR(s)) {
-                            block = new AddressBlock(s);
-                        } else if(s.contains("-")) {
-                            String[] parts = s.split("-");
-                            if(parts.length == 2) {
-                                block = new AddressBlock(new Address(parts[0].trim()), new Address(parts[1].trim()));
+                    locs.add(InetAddress.getByName(s).getHostAddress());
+                } catch (Exception ignored) {
+                    try {
+                        if(s.contains("-") || s.contains("/")) {
+                            if(s.contains("/") && AddressBlock.isCIDR(s)) {
+                                block = new AddressBlock(s);
+                            } else if(s.contains("-")) {
+                                String[] parts = s.split("-");
+                                if(parts.length == 2) {
+                                    block = new AddressBlock(new Address(parts[0].trim()), new Address(parts[1].trim()));
+                                }
                             }
+                            if(block != null) {
+                                locs.add(block);
+                            }
+                        } else {
+                            locs.add(s);
                         }
-                        if(block != null) {
-                            locs.add(block);
-                        }
-                    } else {
-                        locs.add(s);
+                    } catch (Exception e) {
+                        System.err.println(s);
                     }
-                } catch (Exception e) {
-                    System.err.println(s);
                 }
             }
         }
+        System.out.println(locs);
         return locs;
     }
 

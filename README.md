@@ -19,8 +19,10 @@ Configuration will only affect network scanning and not drive discovery on the l
 * LocalAdmin:123456
 * NetworkAdmin:21345|localdomain
 
-**Network Locations** are listed in single IP, network range, or CIDR formats. Acceptable examples:
+**Network Locations** are listed in single IP, single name, network range, or CIDR formats. Acceptable examples:
 * 192.168.1.1
 * 192.355.2.1  // Overflowing segments greater than 255 are added onto the next (left) number. Converts to '193.99.2.1'
 * 192.168.1.0-192.168.1.255
 * 192.168.1.0/18
+* neptune-04.localdomain.com
+* local-system-name
