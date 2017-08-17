@@ -13,7 +13,7 @@ Java File Explorer that combines traversing local drives with FTP and SMB networ
 ## Configuration
 Configuration will only affect network scanning and not drive discovery on the local system.
 
-**Credentials** are listed in the format [username]:<password]>|<domain>. Usernames are required followed by a semicolon. Passwords are not in the case of blank or null password sign-ins such as anonymous ftp logins. Acceptable examples:
+**Credentials** are listed in the format [username]:<password]>|\<domain>. Usernames are required followed by a semicolon. Passwords are not in the case of blank or null password sign-ins such as anonymous ftp logins. Acceptable examples:
 * administrator:
 * administrator:|localdomain
 * LocalAdmin:123456
