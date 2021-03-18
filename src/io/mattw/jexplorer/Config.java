@@ -1,4 +1,4 @@
-package mattw.jexplorer;
+package io.mattw.jexplorer;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

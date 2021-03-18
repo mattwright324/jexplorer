@@ -1,5 +1,7 @@
-package mattw.jexplorer;
+package io.mattw.jexplorer;
 
+import io.mattw.jexplorer.io.Address;
+import io.mattw.jexplorer.io.AddressBlock;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -20,8 +22,6 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
-import mattw.jexplorer.io.Address;
-import mattw.jexplorer.io.AddressBlock;
 import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.File;
@@ -96,7 +96,7 @@ public class JExplorer extends Application {
         localIndicator.setMaxWidth(20);
         localIndicator.setMaxHeight(20);
 
-        ImageView refresh = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/refresh.png").toExternalForm()));
+        ImageView refresh = new ImageView(new Image(getClass().getResource("/io/mattw/jexplorer/img/refresh.png").toExternalForm()));
         refresh.setFitHeight(16);
         refresh.setFitWidth(16);
 
@@ -115,15 +115,15 @@ public class JExplorer extends Application {
         Label nTitle = new Label("Network Scan");
         nTitle.setMaxWidth(Double.MAX_VALUE);
 
-        ImageView settings = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/settings.png").toExternalForm()));
+        ImageView settings = new ImageView(new Image(getClass().getResource("/io/mattw/jexplorer/img/settings.png").toExternalForm()));
         settings.setFitHeight(16);
         settings.setFitWidth(16);
 
-        ImageView trash = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/trash.png").toExternalForm()));
+        ImageView trash = new ImageView(new Image(getClass().getResource("/io/mattw/jexplorer/img/trash.png").toExternalForm()));
         trash.setFitHeight(16);
         trash.setFitWidth(16);
 
-        ImageView start = new ImageView(new Image(getClass().getResource("/mattw/jexplorer/img/start.png").toExternalForm()));
+        ImageView start = new ImageView(new Image(getClass().getResource("/io/mattw/jexplorer/img/start.png").toExternalForm()));
         start.setFitHeight(16);
         start.setFitWidth(16);
 
@@ -200,7 +200,7 @@ public class JExplorer extends Application {
             Platform.exit();
             System.exit(0);
         });
-        stage.getIcons().add(new Image(getClass().getResource("/mattw/jexplorer/img/icon.png").toExternalForm()));
+        stage.getIcons().add(new Image(getClass().getResource("/io/mattw/jexplorer/img/icon.png").toExternalForm()));
         stage.show();
 
         btnRefresh.fire();

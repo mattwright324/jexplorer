@@ -1,5 +1,6 @@
-package mattw.jexplorer;
+package io.mattw.jexplorer;
 
+import io.mattw.jexplorer.io.FilesTransferrable;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -23,7 +24,6 @@ import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
 import jcifs.smb.SmbFileInputStream;
 import jcifs.smb.SmbFileOutputStream;
-import mattw.jexplorer.io.FilesTransferrable;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
@@ -42,8 +42,8 @@ import java.util.stream.Collectors;
  * Controller for a selected drive in the TreeView.
  */
 public class DriveController extends StackPane {
-    static final Image FILE_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/mattw/jexplorer/img/file.png").toExternalForm());
-    private static final Image FOLDER_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/mattw/jexplorer/img/folder.png").toExternalForm());
+    static final Image FILE_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/io/mattw/jexplorer/img/file.png").toExternalForm());
+    private static final Image FOLDER_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/io/mattw/jexplorer/img/folder.png").toExternalForm());
 
     private DriveExplorer explorer = new DriveExplorer();
     private Label pleaseSelect = new Label("Please select a drive.");
@@ -54,9 +54,9 @@ public class DriveController extends StackPane {
      * Tabbed file explorer, search, and about for each selected drive.
      */
     private static class DriveExplorer extends TabPane {
-        private final Image BACK_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/back.png").toExternalForm());
-        private final Image HOME_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/home.png").toExternalForm());
-        private final Image RELOAD_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/reload.png").toExternalForm());
+        private final Image BACK_ICON = new Image(getClass().getResource("/io/mattw/jexplorer/img/back.png").toExternalForm());
+        private final Image HOME_ICON = new Image(getClass().getResource("/io/mattw/jexplorer/img/home.png").toExternalForm());
+        private final Image RELOAD_ICON = new Image(getClass().getResource("/io/mattw/jexplorer/img/reload.png").toExternalForm());
 
         private Drive drive;
         private FileWrapper homeDir, currentDir;

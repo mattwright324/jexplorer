@@ -1,4 +1,4 @@
-package mattw.jexplorer;
+package io.mattw.jexplorer;
 
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Pos;
@@ -36,7 +36,7 @@ public class DriveView extends HBox {
 
             getChildren().addAll(sysIcon, path);
         } else if(drive.getType() == Type.SAMBA) {
-            Image SMB_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/samba.png").toExternalForm());
+            Image SMB_ICON = new Image(getClass().getResource("/io/mattw/jexplorer/img/samba.png").toExternalForm());
             ImageView icon = new ImageView(SMB_ICON);
             icon.setFitWidth(30);
             icon.setFitHeight(30);
@@ -51,7 +51,7 @@ public class DriveView extends HBox {
 
             getChildren().addAll(icon, vbox);
         } else if(drive.getType() == Type.FTP) {
-            Image FTP_ICON = new Image(getClass().getResource("/mattw/jexplorer/img/ftp.png").toExternalForm());
+            Image FTP_ICON = new Image(getClass().getResource("/io/mattw/jexplorer/img/ftp.png").toExternalForm());
             ImageView icon = new ImageView(FTP_ICON);
             icon.setFitWidth(30);
             icon.setFitHeight(30);

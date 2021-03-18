@@ -1,8 +1,8 @@
-package mattw.jexplorer;
+package io.mattw.jexplorer;
 
+import io.mattw.jexplorer.io.Address;
 import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
-import mattw.jexplorer.io.Address;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 
