@@ -23,6 +23,8 @@ import javafx.stage.Stage;
 import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
 import org.apache.commons.net.ftp.FTPClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,6 +43,8 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 public class JExplorer extends Application {
+
+    private static final Logger logger = LogManager.getLogger();
 
     private static Stage stage;
     private static Config config = new Config();
@@ -200,7 +204,7 @@ public class JExplorer extends Application {
             Platform.exit();
             System.exit(0);
         });
-        stage.getIcons().add(new Image(getClass().getResource("/io/mattw/jexplorer/img/icon.png").toExternalForm()));
+        stage.getIcons().add(new Image(getClass().getResource("/io/mattw/jexplorer/img/icon2.png").toExternalForm()));
         stage.show();
 
         btnRefresh.fire();

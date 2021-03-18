@@ -28,6 +28,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.awt.*;
 import java.io.*;
@@ -42,6 +44,9 @@ import java.util.stream.Collectors;
  * Controller for a selected drive in the TreeView.
  */
 public class DriveController extends StackPane {
+
+    private static final Logger logger = LogManager.getLogger();
+
     static final Image FILE_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/io/mattw/jexplorer/img/file.png").toExternalForm());
     private static final Image FOLDER_ICON = new Image(DriveExplorer.FileWrapper.class.getResource("/io/mattw/jexplorer/img/folder.png").toExternalForm());
 

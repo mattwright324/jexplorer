@@ -11,3 +11,4 @@ jexplorer.config
 META-INF/
 *.mf
 jexplorer.json
+target/

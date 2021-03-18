@@ -3,11 +3,15 @@ package io.mattw.jexplorer;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.lang.reflect.Modifier;
 
 public class Config {
+
+	private static final Logger logger = LogManager.getLogger();
 	
 	private final Gson gson = new GsonBuilder().excludeFieldsWithModifiers(Modifier.FINAL).create();
 	private final File CONFIG_FILE = new File("jexplorer.json");

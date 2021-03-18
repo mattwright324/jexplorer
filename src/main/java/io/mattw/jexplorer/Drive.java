@@ -5,6 +5,8 @@ import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -13,6 +15,9 @@ import java.net.InetAddress;
  * Model for Drives.
  */
 public class Drive {
+
+    private static final Logger logger = LogManager.getLogger();
+
     private Type driveType;
     private String drivePath;
     private String drivePathName;
