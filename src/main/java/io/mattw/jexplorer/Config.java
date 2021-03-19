@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.*;
 import java.lang.reflect.Modifier;
 
+@Deprecated
 public class Config {
 
 	private static final Logger logger = LogManager.getLogger();

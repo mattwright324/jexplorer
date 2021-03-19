@@ -2,6 +2,7 @@ package io.mattw.jexplorer.io;
 
 import java.io.IOException;
 
+@Deprecated
 public class AddressBlock {
 	
 	public Address start;

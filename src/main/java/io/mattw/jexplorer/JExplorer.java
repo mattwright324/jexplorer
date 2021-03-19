@@ -42,6 +42,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
+@Deprecated
 public class JExplorer extends Application {
 
     private static final Logger logger = LogManager.getLogger();
@@ -67,26 +68,6 @@ public class JExplorer extends Application {
     public static Stage getStage() { return stage; }
 
     public static Config getConfig() { return config; }
-
-    /**
-     * Styles TreeCells in the drive selector menu.
-     */
-    class MyTreeCell extends TreeCell<Node> {
-        protected void updateItem(Node item, boolean empty) {
-            super.updateItem(item, empty);
-            if(empty) {
-                this.setGraphic(null);
-                this.setStyle("");
-            } else {
-                if("treeCell".equals(item.getId())) {
-                    this.setStyle("-fx-background-color: linear-gradient(to bottom, transparent, lightgray);");
-                } else {
-                    this.setStyle("");
-                }
-                this.setGraphic(item);
-            }
-        }
-    }
 
     public void start(Stage stage) {
         this.stage = stage;
@@ -333,24 +314,6 @@ public class JExplorer extends Application {
                 }
             });
         }).start();
-    }
-
-    class Credential {
-        private String user="", pass="", domain="";
-
-        public Credential(String username, String password, String domain) {
-            this.user = username;
-            this.pass = password;
-            this.domain = domain;
-        }
-
-        public String getUser() { return user; }
-        public String getPass() { return pass; }
-        public String getDomain() { return domain; }
-
-        public String toString() {
-            return user+":"+pass+"|"+domain;
-        }
     }
 
     private List<Credential> parseCredentials(String credentials) {

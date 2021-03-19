@@ -40,6 +40,7 @@ import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Deprecated
 /**
  * Controller for a selected drive in the TreeView.
  */

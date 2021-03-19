@@ -11,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.File;
 import java.net.InetAddress;
 
+@Deprecated
 /**
  * Model for Drives.
  */

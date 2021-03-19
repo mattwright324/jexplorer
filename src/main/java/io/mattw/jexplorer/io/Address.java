@@ -2,6 +2,7 @@ package io.mattw.jexplorer.io;
 
 import java.io.IOException;
 
+@Deprecated
 public class Address {
 
 	private static final double POW1 = Math.pow(256, 1);

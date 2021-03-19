@@ -17,6 +17,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
+@Deprecated
 /**
  * View wrapper for the Drive class.
  * Displays for selection in the TreeView.

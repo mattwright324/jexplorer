@@ -1,11 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TreeView?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.TreeItem?>
 <StackPane xmlns="http://javafx.com/javafx"
            xmlns:fx="http://javafx.com/fxml"
            fx:controller="io.mattw.jexplorer.fxml.Main"
            alignment="TOP_CENTER"
            prefWidth="1000.0" prefHeight="550.0">
-    <Label>Hello world!</Label>
+    <SplitPane dividerPositions="0.4">
+        <VBox spacing="5" alignment="TOP_CENTER">
+            <TreeView fx:id="tree">
+                <TreeItem>
+                    <children>
+                        <TreeItem fx:id="localRoot">
+
+                        </TreeItem>
+                        <TreeItem fx:id="networkRoot">
+
+                        </TreeItem>
+                    </children>
+                </TreeItem>
+            </TreeView>
+            <ProgressBar fx:id="networkIndicator" />
+            <Label fx:id="scanPosition">
+
+            </Label>
+        </VBox>
+        <StackPane>
+            <Label>DriveController</Label>
+        </StackPane>
+    </SplitPane>
 </StackPane>

@@ -16,6 +16,8 @@ public class JExplorer2 extends Application {
 
     private static final Logger logger = LogManager.getLogger();
 
+    private static final ConfigFile<ConfigData> config = new ConfigFile<>("jexplorer.json", new ConfigData());
+
     public static void main(String[] args) {
         logger.debug("Starting Application");
 
@@ -43,6 +45,10 @@ public class JExplorer2 extends Application {
             Platform.exit();
             System.exit(0);
         }
+    }
+
+    public static ConfigFile<ConfigData> getConfig() {
+        return config;
     }
 
 }
