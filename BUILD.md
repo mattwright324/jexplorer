@@ -3,7 +3,7 @@ Build Documentation
 
 This project is configured to be built with Maven.
 
-### Building youtube-comment-suite
+### Building jexplorer
 
 Get a copy of the repository
 

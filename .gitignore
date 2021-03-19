@@ -1,14 +1,12 @@
-# Compiled class file
-# Log filePane
-# BlueJ files
-# Mobile Tools for Java (J2ME)
-# Package Files #
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+*.bak
+*.log
+*.sqlite3-journal
+*.~vsdx
 .idea/
+exports/
 jexplorer.iml
-out/
-jexplorer.config
-META-INF/
-*.mf
 jexplorer.json
+log/
+out/
 target/
+thumbs/

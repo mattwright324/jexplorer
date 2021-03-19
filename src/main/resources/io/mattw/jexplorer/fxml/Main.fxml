@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Label?>
+<StackPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="io.mattw.jexplorer.fxml.Main"
+           alignment="TOP_CENTER"
+           prefWidth="1000.0" prefHeight="550.0">
+    <Label>Hello world!</Label>
+</StackPane>
