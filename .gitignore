@@ -1,12 +1,18 @@
-*.bak
-*.log
-*.sqlite3-journal
-*.~vsdx
-.idea/
-exports/
-jexplorer.iml
-jexplorer.json
+/bin/
+
+# Eclipse junk
+.project
+.classpath
+.settings
+
+# Gradle junk
+build/
+.gradle
+
+# Idea junk
+.idea
+jpowder-game.iml
+
+/bin1/
+
 log/
-out/
-target/
-thumbs/

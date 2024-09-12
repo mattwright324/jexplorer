@@ -8,7 +8,7 @@
 <?import javafx.scene.control.TreeItem?>
 <StackPane xmlns="http://javafx.com/javafx"
            xmlns:fx="http://javafx.com/fxml"
-           fx:controller="io.mattw.jexplorer.fxml.Main"
+           fx:controller="io.mattw.jexplorer.old.fxml.Main"
            alignment="TOP_CENTER"
            prefWidth="1000.0" prefHeight="550.0">
     <SplitPane dividerPositions="0.4">

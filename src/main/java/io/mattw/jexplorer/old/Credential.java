@@ -1,4 +1,4 @@
-package io.mattw.jexplorer;
+package io.mattw.jexplorer.old;
 
 class Credential {
 

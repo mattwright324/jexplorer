@@ -1,0 +1,77 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath "gradle.plugin.com.github.johnrengelman:shadow:7.1.2"
+    }
+}
+
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id "application"
+}
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
+
+jar {
+    manifest {
+        // fix for shadow plugin + log4j
+        attributes 'Multi-Release': 'true'
+    }
+}
+
+static def buildTime() {
+    return new Date().format('yyyyMMdd.HHmmss')
+}
+
+tasks.register('packageJar', Copy) {
+    delete layout.buildDirectory.dir('package')
+    dependsOn('shadowJar')
+
+    from layout.projectDirectory.file('README.md')
+    into layout.buildDirectory.dir('package')
+
+    from layout.projectDirectory.file('LICENSE')
+    into layout.buildDirectory.dir('package')
+
+    from layout.buildDirectory.file('libs/jexplorer-all.jar')
+    into layout.buildDirectory.dir('package')
+
+    def version = buildTime()
+    from layout.buildDirectory.file('package/jexplorer-all.jar')
+    rename { String fileName -> fileName.replace('all', version) }
+}
+
+// Setup application, dependencies
+group = "io.mattw.jexplorer"
+
+application {
+    mainClassName = "io.mattw.jexplorer.Application"
+}
+
+dependencies {
+    implementation 'org.apache.logging.log4j:log4j-api:2.23.1'
+    implementation 'org.apache.logging.log4j:log4j-core:2.23.1'
+
+    compileOnly 'org.projectlombok:lombok:1.18.34'
+    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+    implementation 'commons-io:commons-io:2.16.1'
+    implementation 'commons-net:commons-net:3.11.1'
+    implementation 'jcifs:jcifs:1.3.17'
+    implementation 'com.google.code.gson:gson:2.11.0'
+
+    // UI
+    implementation 'com.formdev:flatlaf:3.5'
+    implementation 'com.formdev:flatlaf-extras:3.5'
+    implementation 'com.miglayout:miglayout-swing:11.3'
+}
